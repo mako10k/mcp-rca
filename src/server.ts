@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { createMcpServer } from "./framework/mcpServerKit.js";
+import { createMcpServer, type TransportStreams } from "./framework/mcpServerKit.js";
 import { conclusionTool } from "./tools/conclusion.js";
 import { hypothesisProposeTool } from "./tools/hypothesis.js";
 import { prioritizeTool } from "./tools/prioritize.js";
@@ -29,7 +29,7 @@ function registerTool(server: any, tool: ToolDefinition) {
   }
 }
 
-export async function buildServer() {
+export async function buildServer(streams?: TransportStreams) {
   const server = await createMcpServer({
     name: "mcp-rca",
     version: "0.1.0",
@@ -37,15 +37,15 @@ export async function buildServer() {
       tools: { listChanged: true },
       resources: { subscribe: true, listChanged: true },
     },
-  });
+  }, streams);
 
   TOOL_REGISTRY.forEach((tool) => registerTool(server, tool));
 
   return server;
 }
 
-export async function start() {
-  const server = await buildServer();
+export async function start(streams?: TransportStreams) {
+  const server = await buildServer(streams);
   if (typeof server.start === "function") {
     return server.start();
   }

@@ -132,6 +132,17 @@ Case {
 mcp-cli call hypothesis/propose --case c_102 --context "..." --logs error.log
 ```
 
+### Codex MCP
+`~/.codex/config.toml` に以下のエントリを追加することで、Codex CLI から本サーバを利用できます。  
+登録後は、CLI で `/tools/call` を実行して問題調査や仮説生成を支援させてください。
+
+```toml
+[servers.mcp-rca]
+command = "npm"
+args = ["run", "dev"]
+cwd = "/home/mako10k/mcp-rca"
+```
+
 ---
 
 ## 🧭 Suggested Directory Layout

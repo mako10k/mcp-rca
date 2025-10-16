@@ -1,0 +1,22 @@
+{
+  "name": "mcp-rca",
+  "version": "0.1.0",
+  "description": "Root Cause Analysis MCP server scaffolding.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "vitest": "^2.1.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

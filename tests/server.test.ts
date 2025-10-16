@@ -1,87 +1,50 @@
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { buildServer } from "../src/server.js";
-import type { PrioritizeInput, PrioritizeOutput } from "../src/tools/prioritize.js";
-import type { ToolDefinition } from "../src/tools/types.js";
+import { connectToTransport } from "../src/framework/mcpServerKit.js";
+import { buildServer, start } from "../src/server.js";
+import type { PrioritizeInput } from "../src/tools/prioritize.js";
 
-describe("buildServer", () => {
-  it("registers core tools with the MCP server stub", async () => {
-    const server = await buildServer({ input: new PassThrough(), output: new PassThrough() });
-    const toolNames = Array.from(server.tools.keys());
-
-    expect(toolNames).toEqual([
-      "hypothesis/propose",
-      "test/plan",
-      "test/prioritize",
-      "conclusion/finalize",
-    ]);
-
-    const prioritizeTool = server.tools.get(
-      "test/prioritize",
-    ) as ToolDefinition<PrioritizeInput, PrioritizeOutput> | undefined;
-    expect(prioritizeTool).toBeDefined();
-
-    const input: PrioritizeInput = {
-      strategy: "RICE",
-      items: [
-        { id: "a", reach: 10, impact: 2, confidence: 0.5, effort: 5 },
-        { id: "b", reach: 30, impact: 5, confidence: 0.9, effort: 8 },
-        { id: "c", reach: 5, impact: 3, confidence: 0.7, effort: 2 },
-      ],
-    };
-
-    const output = await prioritizeTool!.handler(input, {
-      requestId: "test",
-      now: () => new Date(),
-    });
-    expect(output.ranked).toHaveLength(3);
-    expect(output.ranked[0].rank).toBe(1);
-    expect(output.ranked[0].score).toBeGreaterThan(output.ranked[1].score);
-  });
-
-  it("start() resolves successfully via the MCP server stub", async () => {
-    const server = await buildServer({ input: new PassThrough(), output: new PassThrough() });
-    await expect(server.start()).resolves.toBeUndefined();
-  });
-
-  it("prints a notice and exits immediately when stdin is a TTY", async () => {
-    const input = new PassThrough() as PassThrough & { isTTY: boolean };
-    input.isTTY = true;
-    const output = new PassThrough();
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const server = await buildServer({ input, output });
-    await expect(server.start()).resolves.toBeUndefined();
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("mcp-rca 0.1.0 operates as an MCP server"),
-    );
-
-    consoleSpy.mockRestore();
-  });
-
-  it("responds to initialize, tools/list, and tools/call requests", async () => {
+describe("mcp server", () => {
+  it("lists resources and tools and can service tool calls", async () => {
     const input = new PassThrough();
     const output = new PassThrough();
-    const server = await buildServer({ input, output });
-    await server.start();
+    const { server, transport } = await buildServer({ input, output });
+    await connectToTransport(server, transport);
 
-    const initializeResponsePromise = readResponse(output);
-    sendMessage(input, { jsonrpc: "2.0", id: 1, method: "initialize", params: {} });
-    const initializeResponse = await initializeResponsePromise;
+    const initializeResponse = await issueRequest(output, input, {
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        clientInfo: { name: "TestClient", version: "0.0.1" },
+        capabilities: {},
+      },
+    });
 
-    expect(initializeResponse.result.serverInfo).toEqual({ name: "mcp-rca", version: "0.1.0" });
+    expect(initializeResponse.result.serverInfo).toEqual({
+      name: "mcp-rca",
+      title: "mcp-rca",
+      version: "0.1.0",
+    });
+    expect(initializeResponse.result.protocolVersion).toBe("2025-06-18");
 
-    const toolsListResponsePromise = readResponse(output);
-    sendMessage(input, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-    const toolsListResponse = await toolsListResponsePromise;
+    sendMessage(input, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+      params: {},
+    });
+
+    const toolsListResponse = await issueRequest(output, input, {
+      id: 2,
+      method: "tools/list",
+      params: {},
+    });
 
     expect(Array.isArray(toolsListResponse.result.tools)).toBe(true);
-    expect(toolsListResponse.result.tools).toContainEqual(
-      expect.objectContaining({ name: "test/prioritize" }),
+    expect(toolsListResponse.result.tools).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "test/prioritize" })]),
     );
 
-    const toolCallResponsePromise = readResponse(output);
     const prioritizeInput: PrioritizeInput = {
       strategy: "RICE",
       items: [
@@ -90,60 +53,98 @@ describe("buildServer", () => {
       ],
     };
 
-    sendMessage(input, {
-      jsonrpc: "2.0",
+    const toolCallResponse = await issueRequest(output, input, {
       id: 3,
       method: "tools/call",
       params: { name: "test/prioritize", arguments: prioritizeInput },
     });
 
-    const toolCallResponse = await toolCallResponsePromise;
-    expect(toolCallResponse.result.content).toHaveLength(1);
-    expect(toolCallResponse.result.content[0].type).toBe("application/json");
-    expect(toolCallResponse.result.content[0].data.ranked[0].rank).toBe(1);
+    expect(toolCallResponse.result.structuredContent).toBeDefined();
+    expect(toolCallResponse.result.structuredContent.ranked[0].rank).toBe(1);
 
-    input.end();
-    output.end();
+    const resourcesListResponse = await issueRequest(output, input, {
+      id: 4,
+      method: "resources/list",
+      params: {},
+    });
+
+    expect(Array.isArray(resourcesListResponse.result.resources)).toBe(true);
+    expect(
+      resourcesListResponse.result.resources.some(
+        (resource: { uri: string }) => resource.uri === "doc://mcp-rca/README",
+      ),
+    ).toBe(true);
+
+    const resourceReadResponse = await issueRequest(output, input, {
+      id: 5,
+      method: "resources/read",
+      params: { uri: "doc://mcp-rca/README" },
+    });
+
+    expect(resourceReadResponse.result.contents).toHaveLength(1);
+    expect(resourceReadResponse.result.contents[0].text).toContain("# mcp-rca");
+
+    await server.close();
+    await transport.close();
+  });
+
+  it("prints a notice and returns when stdin is a TTY", async () => {
+    const input = new PassThrough() as PassThrough & { isTTY: boolean };
+    input.isTTY = true;
+    const output = new PassThrough();
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(start({ input, output })).resolves.toBeUndefined();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("mcp-rca 0.1.0 operates as an MCP server"),
+    );
+
+    consoleSpy.mockRestore();
   });
 });
 
+async function issueRequest(
+  output: PassThrough,
+  input: PassThrough,
+  request: {
+    id: number;
+    method: string;
+    params: Record<string, unknown>;
+  },
+) {
+  const responsePromise = readResponse(output);
+  sendMessage(input, {
+    jsonrpc: "2.0",
+    ...request,
+  });
+  return responsePromise;
+}
+
 function sendMessage(stream: PassThrough, message: unknown) {
-  const payload = Buffer.from(JSON.stringify(message), "utf8");
-  const header = Buffer.from(`Content-Length: ${payload.length}\r\n\r\n`);
-  stream.write(header);
-  stream.write(payload);
+  stream.write(`${JSON.stringify(message)}\n`);
 }
 
 async function readResponse(stream: PassThrough): Promise<any> {
-  let buffer = Buffer.alloc(0);
+  let buffer = "";
 
   return new Promise((resolve, reject) => {
     const onData = (chunk: Buffer) => {
-      buffer = Buffer.concat([buffer, chunk]);
-      const delimiterIndex = buffer.indexOf(Buffer.from("\r\n\r\n"));
-      if (delimiterIndex === -1) {
+      buffer += chunk.toString("utf8");
+      const newlineIndex = buffer.indexOf("\n");
+      if (newlineIndex === -1) {
         return;
       }
 
-      const header = buffer.slice(0, delimiterIndex).toString("utf8");
-      const lengthMatch = /Content-Length:\s*(\d+)/i.exec(header);
-      if (!lengthMatch) {
-        stream.off("data", onData);
-        reject(new Error("Missing Content-Length header"));
-        return;
-      }
-
-      const length = Number.parseInt(lengthMatch[1], 10);
-      const frameEnd = delimiterIndex + 4 + length;
-      if (buffer.length < frameEnd) {
-        return;
-      }
-
-      const body = buffer.slice(delimiterIndex + 4, frameEnd).toString("utf8");
-      buffer = buffer.slice(frameEnd);
+      const line = buffer.slice(0, newlineIndex).replace(/\r$/, "");
+      const remainder = buffer.slice(newlineIndex + 1);
+      buffer = "";
       stream.off("data", onData);
+      if (remainder) {
+        stream.unshift(Buffer.from(remainder, "utf8"));
+      }
       try {
-        resolve(JSON.parse(body));
+        resolve(JSON.parse(line));
       } catch (error) {
         reject(error);
       }

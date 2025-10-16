@@ -7,10 +7,12 @@ export interface ToolContext {
   };
 }
 
+import type { z } from "zod";
+
 export interface ToolDefinition<Input = unknown, Output = unknown> {
   name: string;
   description: string;
-  inputSchema: Record<string, unknown>;
-  outputSchema: Record<string, unknown>;
+  inputSchema: z.ZodType<Input>;
+  outputSchema: z.ZodType<Output>;
   handler: (input: Input, context: ToolContext) => Promise<Output>;
 }

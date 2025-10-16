@@ -1,10 +1,21 @@
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createMcpServer, type TransportStreams } from "./framework/mcpServerKit.js";
+import { z } from "zod";
+import {
+  connectToTransport,
+  createMcpServer,
+  createTransport,
+  type McpServer,
+  type ServerRequestExtra,
+  type TransportStreams,
+} from "./framework/mcpServerKit.js";
 import { conclusionTool } from "./tools/conclusion.js";
 import { hypothesisProposeTool } from "./tools/hypothesis.js";
 import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
-import type { ToolDefinition } from "./tools/types.js";
+import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
 const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   hypothesisProposeTool,
@@ -12,47 +23,85 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   prioritizeTool,
   conclusionTool,
 ];
-
-function registerTool(server: any, tool: ToolDefinition) {
-  if (typeof server.registerTool === "function") {
-    server.registerTool(tool);
-  } else if (typeof server.tool === "function") {
-    server.tool(tool);
-  } else if (
-    typeof server.addTool === "function" &&
-    tool.name &&
-    typeof tool.handler === "function"
-  ) {
-    server.addTool(tool.name, tool);
-  } else {
-    throw new Error(`Unknown MCP server interface for tool ${tool.name}`);
-  }
-}
-
 export async function buildServer(streams?: TransportStreams) {
-  const server = await createMcpServer({
+  const server = createMcpServer({
     name: "mcp-rca",
     version: "0.1.0",
-    capabilities: {
-      tools: { listChanged: true },
-      resources: { subscribe: true, listChanged: true },
-    },
-  }, streams);
+    title: "mcp-rca",
+  });
 
   TOOL_REGISTRY.forEach((tool) => registerTool(server, tool));
+  await registerDefaultResources(server);
 
-  return server;
+  const transport = createTransport(streams);
+  return { server, transport };
 }
 
 export async function start(streams?: TransportStreams) {
-  const server = await buildServer(streams);
-  if (typeof server.start === "function") {
-    return server.start();
+  const { server, transport } = await buildServer(streams);
+  const input = streams?.input ?? process.stdin;
+
+  if ((input as NodeJS.ReadStream).isTTY) {
+    console.error("mcp-rca 0.1.0 operates as an MCP server over stdio. Launch it via an MCP-compatible client.");
+    return;
   }
-  if (typeof server.listen === "function") {
-    return server.listen();
-  }
-  throw new Error("MCP server implementation does not expose a start method.");
+
+  await connectToTransport(server, transport);
+}
+
+async function registerDefaultResources(server: McpServer) {
+  const rootDir = fileURLToPath(new URL("..", import.meta.url));
+
+  const resources = [
+    {
+      uri: "doc://mcp-rca/README",
+      name: "Project README",
+      description: "High-level overview and setup instructions for mcp-rca.",
+      path: resolve(rootDir, "README.md"),
+      mimeType: "text/markdown",
+    },
+    {
+      uri: "doc://mcp-rca/AGENT",
+      name: "Agent Specification",
+      description: "Detailed design goals and capabilities of the RCA MCP agent.",
+      path: resolve(rootDir, "AGENT.md"),
+      mimeType: "text/markdown",
+    },
+    {
+      uri: "doc://mcp-rca/prompts/hypothesis",
+      name: "Hypothesis Prompt",
+      description: "Prompt template used for generating RCA hypotheses.",
+      path: resolve(rootDir, "src", "llm", "prompts", "hypothesis.md"),
+      mimeType: "text/markdown",
+    },
+  ];
+
+  await Promise.all(
+    resources.map(async (resource) => {
+      try {
+        await readFile(resource.path, "utf8");
+        server.registerResource(
+          resource.name,
+          resource.uri,
+          {
+            description: resource.description,
+            mimeType: resource.mimeType,
+          },
+          async () => ({
+            contents: [
+              {
+                uri: resource.uri,
+                mimeType: resource.mimeType,
+                text: await readFile(resource.path, "utf8"),
+              },
+            ],
+          }),
+        );
+      } catch (error) {
+        console.error(`Failed to register resource ${resource.uri}`, error);
+      }
+    }),
+  );
 }
 
 const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
@@ -63,4 +112,70 @@ if (isDirectRun) {
     console.error("Failed to start mcp-rca server", error);
     process.exit(1);
   });
+}
+
+function registerTool(server: McpServer, tool: ToolDefinition) {
+  const inputSchema = (tool.inputSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
+  const outputSchema = (tool.outputSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
+
+  server.registerTool(
+    tool.name,
+    {
+      description: tool.description,
+      inputSchema,
+      outputSchema,
+    },
+    async (args, extra) => {
+      const context = createToolContext(tool.name, extra);
+      const result = await tool.handler((args ?? {}) as unknown as Parameters<typeof tool.handler>[0], context);
+      const structuredContent = result as Record<string, unknown>;
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(structuredContent, null, 2),
+          },
+        ],
+        structuredContent,
+      };
+    },
+  );
+}
+
+function createToolContext(toolName: string, extra: ServerRequestExtra): ToolContext {
+  const requestId = extra.requestId !== undefined ? String(extra.requestId) : randomUUID();
+
+  const logger = {
+    info: (message: string, meta?: unknown) => {
+      console.error(
+        JSON.stringify({
+          level: "info",
+          tool: toolName,
+          requestId,
+          message,
+          meta,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    },
+    error: (message: string, meta?: unknown) => {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          tool: toolName,
+          requestId,
+          message,
+          meta,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    },
+  };
+
+  return {
+    requestId,
+    now: () => new Date(),
+    logger,
+  };
 }

@@ -12,7 +12,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "vitest": "^2.1.1",

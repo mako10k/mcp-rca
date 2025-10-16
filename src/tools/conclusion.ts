@@ -1,67 +1,37 @@
+import { z } from "zod";
 import type { Conclusion } from "../schema/result.js";
 import type { ToolDefinition } from "./types.js";
 
-export interface ConclusionInput {
-  caseId: string;
-  rootCauses: string[];
-  fix: string;
-  followUps?: string[];
-}
+const conclusionInputSchema = z.object({
+  caseId: z.string(),
+  rootCauses: z.array(z.string()).min(1),
+  fix: z.string(),
+  followUps: z.array(z.string()).optional(),
+});
 
-export interface ConclusionOutput {
-  conclusion: Conclusion;
-}
+const conclusionSchema = z.object({
+  id: z.string(),
+  caseId: z.string(),
+  rootCauses: z.array(z.string()).min(1),
+  fix: z.string(),
+  followUps: z.array(z.string()).optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  confidenceMarker: z.enum(["🟢", "🔵", "🟡", "🔴"]).optional(),
+});
+
+const conclusionOutputSchema = z.object({
+  conclusion: conclusionSchema,
+});
+
+export type ConclusionInput = z.infer<typeof conclusionInputSchema>;
+export type ConclusionOutput = z.infer<typeof conclusionOutputSchema>;
 
 export const conclusionTool: ToolDefinition<ConclusionInput, ConclusionOutput> = {
   name: "conclusion/finalize",
   description: "Close the RCA case with the agreed root cause and follow-up actions.",
-  inputSchema: {
-    type: "object",
-    required: ["caseId", "rootCauses", "fix"],
-    properties: {
-      caseId: { type: "string" },
-      rootCauses: {
-        type: "array",
-        minItems: 1,
-        items: { type: "string" },
-      },
-      fix: { type: "string" },
-      followUps: {
-        type: "array",
-        items: { type: "string" },
-      },
-    },
-    additionalProperties: false,
-  },
-  outputSchema: {
-    type: "object",
-    required: ["conclusion"],
-    properties: {
-      conclusion: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          caseId: { type: "string" },
-          rootCauses: {
-            type: "array",
-            items: { type: "string" },
-          },
-          fix: { type: "string" },
-          followUps: {
-            type: "array",
-            items: { type: "string" },
-          },
-          createdAt: { type: "string" },
-          updatedAt: { type: "string" },
-          confidenceMarker: {
-            type: "string",
-            enum: ["🟢", "🔵", "🟡", "🔴"],
-          },
-        },
-        required: ["id", "caseId", "rootCauses", "fix", "createdAt", "updatedAt"],
-      },
-    },
-  },
+  inputSchema: conclusionInputSchema,
+  outputSchema: conclusionOutputSchema,
   handler: async (input: ConclusionInput) => {
     const timestamp = new Date().toISOString();
     return {

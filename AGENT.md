@@ -1,189 +1,59 @@
-# 🧠 AGENT.md — Root Cause Analysis Agent (`mcp-rca`)
+# AGENT.md — Root Cause Analysis MCP Server
 
-## 🎯 Purpose
-このエージェントは、**事象の原因特定・仮説検証・再発防止策策定**を支援するための MCP (Model Context Protocol) サーバです。  
-LLM による思考補助を安全に行うことを目的とし、以下の構造化フェーズを自動化します。
+最終更新: 2025-10-16
 
-| フェーズ | 概要 |
-|----------|------|
-| 事象 (Observation) | 何が起きたのかを記録 |
-| 影響 (Impact) | どの範囲にどんな影響が出たか |
-| 原因仮説 (Hypothesis) | 想定される原因候補 |
-| 仮説立証案 (Test Plan) | どう検証するか |
-| 優先順位 (Prioritization) | どの仮説から検証するか |
-| 対応結果 (Test Result) | 実際に得られた結果 |
-| 総合判定 (Conclusion) | 原因の確定と再発防止策 |
+## 目的
+`mcp-rca` はインシデントの原因分析を支援するための Model Context Protocol (MCP) サーバです。LLM が調査を補助できるよう、仮説生成から結論整理までの流れをツールとして提供します。
 
----
+## 実装概要
+- 言語 / ランタイム: TypeScript (ESM) on Node.js 20
+- プロトコル実装: `@modelcontextprotocol/sdk` (MCP 2025-06-18)
+- トランスポート: stdio (改行区切り JSON Frames)
+- エントリーポイント: `dist/server.js`
+- 開発用ホットリロード: `npm run dev` (tsx) — MCP クライアント経由では使用しないこと
 
-## 🧩 Architecture Overview
+## 公開機能
+### ツール
+| 名前 | 役割 | 主な入力 | 主な出力 |
+|------|------|----------|----------|
+| `hypothesis/propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
+| `test/plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
+| `test/prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
+| `conclusion/finalize` | 結論とフォローアップの確定 | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
 
-```mermaid
-graph TD
-  A[client: Copilot / ChatGPT / MCP UI] -->|tools/list| B[mcp-rca server]
-  B --> C[case:create / observation:add / hypothesis:propose ...]
-  B --> D[resources:list/read (case://, doc://)]
-  D --> E[PostgreSQL / JSONB store]
-  B --> F[LLM helper: HypothesisGenerator / PostmortemWriter]
-```
+すべてのツールは Zod スキーマで検証され、`structuredContent` (JSON) と整形済みテキストを返します。
 
----
+### リソース
+| URI | 説明 |
+|-----|------|
+| `doc://mcp-rca/README` | プロジェクト README.md の内容 |
+| `doc://mcp-rca/AGENT` | 本ドキュメント |
+| `doc://mcp-rca/prompts/hypothesis` | 仮説生成プロンプトテンプレート |
 
-## ⚙️ Capabilities Declaration
+`resources/listChanged` 通知に対応済み。`resources/subscribe` は登録のみでイベント送出は今後の拡張です。
 
-```jsonc
-{
-  "name": "mcp-rca",
-  "version": "0.1.0",
-  "capabilities": {
-    "tools": { "listChanged": true },
-    "resources": { "subscribe": true, "listChanged": true }
-  }
-}
-```
+## 典型的なワークフロー
+1. クライアントが `initialize` を送信すると、サーバはサポートバージョンをネゴシエートし capabilities を返す。
+2. `tools/list` で 4 種類のツールが紹介される。
+3. 仮説生成 (`hypothesis/propose`) → テスト計画 (`test/plan`) → 優先順位付け (`test/prioritize`) → 結論整理 (`conclusion/finalize`) の順に利用できる。
+4. いつでも `resources/read` で補助ドキュメントを取得可能。
 
----
+## 開発・運用メモ
+- ビルド: `npm run build`
+- MCP サーバ起動: `npm run start` または `node dist/server.js`
+- テスト: `npm run test` (Vitest)
+- 型チェック: `npm run typecheck`
+- MCP クライアントからは **必ずビルド済みバンドル** を実行する。`npm run dev` を使うと `tsx` が STDOUT にログを出し、クライアントが JSON を解釈できなくなる。
 
-## 🧠 Core Tools
+## ロギング / エラーハンドリング
+- ツール実行時は JSON 形式の構造化ログを `stderr` に出力 (level, tool, requestId, message を含む)。
+- SDK 経由で `tools/listChanged` / `resources/listChanged` 通知を送信。
+- 現在は永続化やケース管理ツールは実装されていない。
 
-| Tool | Purpose | Input | Output |
-|------|----------|--------|--------|
-| `case/create` | RCAケース作成 | `title`, `severity`, `tags` | `caseId` |
-| `observation/add` | 事象登録 | `caseId`, `what`, `context` | `observationId` |
-| `impact/set` | 影響定義 | `metric`, `value`, `scope` | updated |
-| `hypothesis/propose` | 原因仮説提案 (LLM支援) | `text`, `rationale` | `hypothesisId` |
-| `test/plan` | 仮説立証案作成 | `method`, `expected`, `metric` | `testId` |
-| `test/prioritize` | 優先順位決定 (RICE/ICE) | `method`, `items` | ranked list |
-| `test/record_result` | 検証結果記録 | `testId`, `observed`, `metrics` | updated |
-| `conclusion/finalize` | 総合判定 | `rootCauses`, `fix`, `followUps` | closed status |
-| `postmortem/generate` | ふりかえり生成 (5Whys + 魚骨) | `caseId`, `template` | `doc://postmortem/{id}.md` |
+## 今後の拡張候補
+- ケース管理や観測登録ツールの復活 (`case/create`, `observation/add` 等)
+- LLM クライアント統合による仮説生成の実装
+- `resources/subscribe` を利用した差分通知
+- 結論確定時のメタデータ (信頼度, 署名) 付加
 
----
-
-## 🧾 Data Model
-
-```ts
-Case {
-  id: string;
-  title: string;
-  severity: "SEV1"|"SEV2"|"SEV3";
-  tags: string[];
-  observations: Observation[];
-  impacts: Impact[];
-  hypotheses: Hypothesis[];
-  tests: TestPlan[];
-  results: TestResult[];
-  conclusion?: Conclusion;
-  createdAt: string;
-  updatedAt: string;
-}
-```
-
----
-
-## 💬 LLM Prompt Templates
-
-### `hypothesis/propose`
-> あなたはSREチームの分析担当です。以下の観測データ・影響・ログから  
-> 反証可能な原因仮説を最大3件提案してください。  
-> 各仮説には立証方法・期待される観測結果をJSONで添えてください。
-
-### `postmortem/generate`
-> RCA結果をもとに再発防止レポートを生成。  
-> 含める要素：概要 / 発生要因（5 Whys）/ 対策 / 教訓。
-
----
-
-## 🧮 Prioritization Logic
-
-| 指標 | 計算式 | 特徴 |
-|------|--------|------|
-| RICE | (Reach × Impact × Confidence) / Effort | 数量的優先順位付け |
-| ICE | Impact × Confidence × Ease | 簡易・直感的評価 |
-
----
-
-## 🔐 Trust & Safety
-
-- Human-in-the-loop：ツール呼び出し前にユーザー確認を必須化  
-- 最小権限原則：I/O 分離（DB, File, Network のツール分離）  
-- 署名済みビルド：npm lockfile & source hash 検証  
-- 信頼度マーカー出力：🟢🔵🟡🔴 を各結果に付与  
-
----
-
-## 🧩 Integration Examples
-
-### ChatGPT / Copilot
-```bash
-/tools/call
-{
-  "name": "hypothesis/propose",
-  "arguments": {
-    "caseId": "c_102",
-    "context": "PCSが夜間に自動停止",
-    "logs": ["inverter error 503"]
-  }
-}
-```
-
-### CLI
-```bash
-mcp-cli call hypothesis/propose --case c_102 --context "..." --logs error.log
-```
-
-### Codex MCP
-`~/.codex/config.toml` に以下のエントリを追加することで、Codex CLI から本サーバを利用できます。  
-登録後は、CLI で `/tools/call` を実行して問題調査や仮説生成を支援させてください。
-
-```toml
-[servers.mcp-rca]
-command = "npm"
-args = ["run", "dev"]
-cwd = "/home/mako10k/mcp-rca"
-```
-
----
-
-## 🧭 Suggested Directory Layout
-
-```
-mcp-rca/
- ├─ src/
- │   ├─ server.ts
- │   ├─ tools/
- │   │   ├─ hypothesis.ts
- │   │   ├─ test_plan.ts
- │   │   ├─ prioritize.ts
- │   │   └─ conclusion.ts
- │   ├─ schema/
- │   │   ├─ case.ts
- │   │   ├─ hypothesis.ts
- │   │   └─ result.ts
- │   └─ llm/
- │       ├─ prompts/
- │       │   └─ hypothesis.md
- │       └─ generator.ts
- ├─ data/
- │   └─ cases.sqlite
- ├─ package.json
- ├─ README.md
- └─ AGENT.md
-```
-
----
-
-## 🚀 Future Roadmap
-- [ ] Bayesian confidence update (`confidenceHistory`)
-- [ ] `resources/subscribe` for metrics auto-tracking
-- [ ] RCA graph visualization (DAG of cause/effect)
-- [ ] Elicitation loop (`dialog/ask_missing_info`)
-- [ ] GitOps連携（postmortemをPRとして出力）
-
----
-
-## 🧭 Maintainer Notes
-- Framework: `mcp-server-kit` (Node.js)
-- Model: OpenAI GPT-5 or compatible LLM
-- License: MIT / Proprietary selectable
-- Versioning: Semantic Release via GitHub Actions
+本ファイルを常に最新仕様の単一ソースとして扱い、クライアントやドキュメントから参照すること。*** End Patch

@@ -2,10 +2,14 @@
 	"servers": {
 		"mcp-rca": {
 			"type": "stdio",
-			"command": "node",
+			"command": "npm",
 			"args": [
-				"dist/server.js"
-			]
+				"run",
+				"start:mcp"
+			],
+			"dev": {
+				"watch": "src/**/*.ts"
+			}
 		},
 		"memory-mcp": {
 			"type": "stdio",

@@ -1,8 +1,15 @@
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { connectToTransport } from "../src/framework/mcpServerKit.js";
 import { buildServer, start } from "../src/server.js";
 import type { PrioritizeInput } from "../src/tools/prioritize.js";
+
+const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-tests-"));
+const tempCasesPath = join(tempCasesDir, "cases.json");
+process.env.MCP_RCA_CASES_PATH = tempCasesPath;
 
 describe("mcp server", () => {
   it("lists resources and tools and can service tool calls", async () => {
@@ -42,8 +49,28 @@ describe("mcp server", () => {
 
     expect(Array.isArray(toolsListResponse.result.tools)).toBe(true);
     expect(toolsListResponse.result.tools).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "test/prioritize" })]),
+      expect.arrayContaining([
+        expect.objectContaining({ name: "case/create" }),
+        expect.objectContaining({ name: "test/prioritize" }),
+      ]),
     );
+
+    const caseCreateResponse = await issueRequest(output, input, {
+      id: 3,
+      method: "tools/call",
+      params: {
+        name: "case/create",
+        arguments: {
+          title: "Database outage",
+          severity: "SEV2",
+          tags: ["database", "backend"],
+        },
+      },
+    });
+
+    expect(caseCreateResponse.result.structuredContent.caseId).toMatch(/^case_/);
+    expect(caseCreateResponse.result.structuredContent.case.title).toBe("Database outage");
+    const createdCaseId = caseCreateResponse.result.structuredContent.caseId;
 
     const prioritizeInput: PrioritizeInput = {
       strategy: "RICE",
@@ -54,7 +81,7 @@ describe("mcp server", () => {
     };
 
     const toolCallResponse = await issueRequest(output, input, {
-      id: 3,
+      id: 4,
       method: "tools/call",
       params: { name: "test/prioritize", arguments: prioritizeInput },
     });
@@ -63,7 +90,7 @@ describe("mcp server", () => {
     expect(toolCallResponse.result.structuredContent.ranked[0].rank).toBe(1);
 
     const resourcesListResponse = await issueRequest(output, input, {
-      id: 4,
+      id: 5,
       method: "resources/list",
       params: {},
     });
@@ -76,13 +103,15 @@ describe("mcp server", () => {
     ).toBe(true);
 
     const resourceReadResponse = await issueRequest(output, input, {
-      id: 5,
+      id: 6,
       method: "resources/read",
       params: { uri: "doc://mcp-rca/README" },
     });
 
     expect(resourceReadResponse.result.contents).toHaveLength(1);
     expect(resourceReadResponse.result.contents[0].text).toContain("# mcp-rca");
+
+    expect(createdCaseId).toBeDefined();
 
     await server.close();
     await transport.close();

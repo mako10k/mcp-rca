@@ -16,6 +16,7 @@
 ### ツール
 | 名前 | 役割 | 主な入力 | 主な出力 |
 |------|------|----------|----------|
+| `case/create` | 新しい RCA ケースの作成 | `title`, `severity`, `tags?` | `caseId`, `case` |
 | `hypothesis/propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
 | `test/plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
 | `test/prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
@@ -31,6 +32,8 @@
 | `doc://mcp-rca/prompts/hypothesis` | 仮説生成プロンプトテンプレート |
 
 `resources/listChanged` 通知に対応済み。`resources/subscribe` は登録のみでイベント送出は今後の拡張です。
+
+ケースデータは `data/cases.json` に JSON として保存されます。テスト環境などでは `MCP_RCA_CASES_PATH` 環境変数で保存先を上書きできます。
 
 ## 典型的なワークフロー
 1. クライアントが `initialize` を送信すると、サーバはサポートバージョンをネゴシエートし capabilities を返す。

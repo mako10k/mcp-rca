@@ -24,6 +24,7 @@
 | `case_update` | ケースのメタデータ更新とアーカイブ管理 | ✅ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `case` |
 | `observation_add` | ケースに観測を追加 | ✅ | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
 | `observation_remove` | ケースから観測を削除 (ソフトデリート) | ✅ | `caseId`, `observationId` | `caseId`, `observation`, `case` |
+| `observation_update` | 観測内容の更新 | ✅ | `caseId`, `observationId`, `what?`, `context?` | `caseId`, `observation`, `case` |
 | `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
 | `test_plan` | 仮説検証手順の作成 | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
 | `test_prioritize` | テスト計画の優先順位決定 (RICE/ICE) | ✅ | `strategy`, `items[]` | `ranked[]` |
@@ -70,7 +71,7 @@
 - 現在は永続化やケース管理ツールは実装されていない。
 
 ## 今後の拡張候補
-- 観測の更新やケースノート等の追加機能
+- ケースノート等の追加機能
 - LLM クライアント統合による仮説生成の実装
 - `resources/subscribe` を利用した差分通知
 - 結論確定時のメタデータ (信頼度, 署名) 付加

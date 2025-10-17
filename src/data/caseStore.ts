@@ -208,6 +208,67 @@ export async function removeObservation(
   };
 }
 
+export interface UpdateObservationInput {
+  caseId: string;
+  observationId: string;
+  what?: string;
+  context?: string | null;
+}
+
+export interface UpdateObservationResult {
+  observation: Observation;
+  case: Case;
+}
+
+export async function updateObservation(
+  input: UpdateObservationInput,
+): Promise<UpdateObservationResult> {
+  const cases = await loadCases();
+  const caseIndex = cases.findIndex((item) => item.id === input.caseId);
+
+  if (caseIndex === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const observationIndex = cases[caseIndex].observations.findIndex(
+    (item) => item.id === input.observationId,
+  );
+
+  if (observationIndex === -1) {
+    throw new Error(`Observation ${input.observationId} not found in case ${input.caseId}`);
+  }
+
+  const original = cases[caseIndex].observations[observationIndex];
+
+  const updatedObservation: Observation = {
+    ...original,
+    what: input.what !== undefined && input.what.trim().length > 0 ? input.what.trim() : original.what,
+    context:
+      input.context !== undefined
+        ? input.context === null || input.context.trim().length === 0
+          ? undefined
+          : input.context.trim()
+        : original.context,
+  };
+
+  const now = new Date().toISOString();
+  const updatedCase: Case = {
+    ...cases[caseIndex],
+    observations: cases[caseIndex].observations.map((item, idx) =>
+      idx === observationIndex ? updatedObservation : item,
+    ),
+    updatedAt: now,
+  };
+
+  cases[caseIndex] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    observation: updatedObservation,
+    case: updatedCase,
+  };
+}
+
 export interface GetCaseResult {
   case: Case;
 }

@@ -10,6 +10,7 @@ export const caseSchema: z.ZodType<Case> = z.object({
   title: z.string(),
   severity: severitySchema,
   tags: z.array(z.string()),
+  status: z.enum(["active", "archived"]),
   observations: z.array(z.any()),
   impacts: z.array(z.any()),
   hypotheses: z.array(z.any()),

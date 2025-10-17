@@ -2,6 +2,7 @@ import { Hypothesis, TestPlan } from "./hypothesis.js";
 import { Conclusion, TestResult } from "./result.js";
 
 export type Severity = "SEV1" | "SEV2" | "SEV3";
+export type CaseStatus = "active" | "archived";
 
 export interface Observation {
   id: string;
@@ -25,6 +26,7 @@ export interface Case {
   title: string;
   severity: Severity;
   tags: string[];
+  status: CaseStatus;
   observations: Observation[];
   impacts: Impact[];
   hypotheses: Hypothesis[];

@@ -19,9 +19,9 @@
 | 名前 | 役割 | ステータス | 主な入力 | 主な出力 |
 |------|------|-----------|----------|----------|
 | `case_create` | 新しい RCA ケースの作成 | ✅ | `title`, `severity`, `tags?` | `caseId`, `case` |
-| `case_get` | 単一ケースの詳細取得 (関連オブジェクトに制限付きページング) | ✳️ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | `case`, `cursors?` |
-| `case_list` | ケース一覧・検索 (ページング付き) | ✳️ | `query?`, `tags?`, `severity?`, `includeArchived?`, `pageSize?`, `cursor?` | `cases[]`, `nextCursor?`, `total?` |
-| `case_update` | ケースのメタデータ更新とアーカイブ管理 | ✳️ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `case` |
+| `case_get` | 単一ケースの詳細取得 (関連オブジェクトに制限付きページング) | ✅ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | `case`, `cursors?` |
+| `case_list` | ケース一覧・検索 (ページング付き) | ✅ | `query?`, `tags?`, `severity?`, `includeArchived?`, `pageSize?`, `cursor?` | `cases[]`, `nextCursor?`, `total?` |
+| `case_update` | ケースのメタデータ更新とアーカイブ管理 | ✅ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `case` |
 | `observation_add` | ケースに観測を追加 | ✅ | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
 | `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
 | `test_plan` | 仮説検証手順の作成 | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
@@ -40,6 +40,7 @@
 `resources/listChanged` 通知に対応済み。`resources/subscribe` は登録のみでイベント送出は今後の拡張です。
 
 ケースデータは `data/cases.json` に JSON として保存されます。テスト環境などでは `MCP_RCA_CASES_PATH` 環境変数で保存先を上書きできます。
+各ケースは `status` (`active` / `archived`) を持ち、`case_update` ツールでアーカイブ切り替えが可能です。
 
 ## 典型的なワークフロー
 1. クライアントが `initialize` を送信すると、サーバはサポートバージョンをネゴシエートし capabilities を返す。
@@ -68,7 +69,7 @@
 - 現在は永続化やケース管理ツールは実装されていない。
 
 ## 今後の拡張候補
-- ケース管理や観測登録ツール群 (`case_get`, `case_list`, `case_update`) の実装と `observation_add` の拡張
+- 観測の更新・削除やケースノート等の追加機能
 - LLM クライアント統合による仮説生成の実装
 - `resources/subscribe` を利用した差分通知
 - 結論確定時のメタデータ (信頼度, 署名) 付加

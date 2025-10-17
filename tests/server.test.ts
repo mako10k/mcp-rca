@@ -76,7 +76,7 @@ describe("mcp server", () => {
       id: 4,
       method: "tools/call",
       params: {
-  name: "observation_add",
+        name: "observation_add",
         arguments: {
           caseId: createdCaseId,
           what: "Error budget burn detected",
@@ -89,6 +89,80 @@ describe("mcp server", () => {
     expect(observationResponse.result.structuredContent.case.observations).toHaveLength(1);
     expect(observationResponse.result.structuredContent.case.observations[0].caseId).toBe(createdCaseId);
 
+    const caseGetResponse = await issueRequest(output, input, {
+      id: 5,
+      method: "tools/call",
+      params: {
+        name: "case_get",
+        arguments: {
+          caseId: createdCaseId,
+          include: ["observations"],
+          observationLimit: 1,
+        },
+      },
+    });
+
+    expect(caseGetResponse.result.structuredContent.case.id).toBe(createdCaseId);
+    expect(caseGetResponse.result.structuredContent.case.observations).toHaveLength(1);
+    expect(caseGetResponse.result.structuredContent.cursors).toBeUndefined();
+
+    const caseListResponse = await issueRequest(output, input, {
+      id: 6,
+      method: "tools/call",
+      params: {
+        name: "case_list",
+        arguments: {
+          query: "Database",
+        },
+      },
+    });
+
+    expect(caseListResponse.result.structuredContent.cases).toHaveLength(1);
+    expect(caseListResponse.result.structuredContent.cases[0].id).toBe(createdCaseId);
+    expect(caseListResponse.result.structuredContent.total).toBeGreaterThanOrEqual(1);
+
+    const caseUpdateResponse = await issueRequest(output, input, {
+      id: 7,
+      method: "tools/call",
+      params: {
+        name: "case_update",
+        arguments: {
+          caseId: createdCaseId,
+          severity: "SEV1",
+          status: "archived",
+        },
+      },
+    });
+
+  expect(caseUpdateResponse.error).toBeUndefined();
+  expect(caseUpdateResponse.result.structuredContent.case.status).toBe("archived");
+    expect(caseUpdateResponse.result.structuredContent.case.severity).toBe("SEV1");
+
+    const archivedListResponse = await issueRequest(output, input, {
+      id: 8,
+      method: "tools/call",
+      params: {
+        name: "case_list",
+        arguments: {},
+      },
+    });
+
+    expect(archivedListResponse.result.structuredContent.cases).toHaveLength(0);
+
+    const includeArchivedResponse = await issueRequest(output, input, {
+      id: 9,
+      method: "tools/call",
+      params: {
+        name: "case_list",
+        arguments: {
+          includeArchived: true,
+        },
+      },
+    });
+
+    expect(includeArchivedResponse.result.structuredContent.cases).toHaveLength(1);
+    expect(includeArchivedResponse.result.structuredContent.cases[0].status).toBe("archived");
+
     const prioritizeInput: PrioritizeInput = {
       strategy: "RICE",
       items: [
@@ -98,7 +172,7 @@ describe("mcp server", () => {
     };
 
     const toolCallResponse = await issueRequest(output, input, {
-      id: 5,
+      id: 10,
       method: "tools/call",
   params: { name: "test_prioritize", arguments: prioritizeInput },
     });
@@ -107,7 +181,7 @@ describe("mcp server", () => {
     expect(toolCallResponse.result.structuredContent.ranked[0].rank).toBe(1);
 
     const resourcesListResponse = await issueRequest(output, input, {
-      id: 6,
+      id: 11,
       method: "resources/list",
       params: {},
     });
@@ -120,7 +194,7 @@ describe("mcp server", () => {
     ).toBe(true);
 
     const resourceReadResponse = await issueRequest(output, input, {
-      id: 7,
+      id: 12,
       method: "resources/read",
       params: { uri: "doc://mcp-rca/README" },
     });

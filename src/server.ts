@@ -12,6 +12,9 @@ import {
   type TransportStreams,
 } from "./framework/mcpServerKit.js";
 import { caseCreateTool } from "./tools/case.js";
+import { caseGetTool } from "./tools/case_get.js";
+import { caseListTool } from "./tools/case_list.js";
+import { caseUpdateTool } from "./tools/case_update.js";
 import { conclusionTool } from "./tools/conclusion.js";
 import { hypothesisProposeTool } from "./tools/hypothesis.js";
 import { observationAddTool } from "./tools/observation.js";
@@ -21,6 +24,9 @@ import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
 const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   caseCreateTool,
+  caseGetTool,
+  caseListTool,
+  caseUpdateTool,
   observationAddTool,
   hypothesisProposeTool,
   testPlanTool,
@@ -147,8 +153,8 @@ function registerTool(server: McpServer, tool: ToolDefinition) {
   );
 }
 
-function createToolContext(toolName: string, extra: ServerRequestExtra): ToolContext {
-  const requestId = extra.requestId !== undefined ? String(extra.requestId) : randomUUID();
+function createToolContext(toolName: string, extra?: ServerRequestExtra): ToolContext {
+  const requestId = extra?.requestId !== undefined ? String(extra.requestId) : randomUUID();
 
   const logger = {
     info: (message: string, meta?: unknown) => {

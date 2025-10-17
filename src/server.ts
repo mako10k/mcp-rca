@@ -30,7 +30,7 @@ import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
-export const SERVER_VERSION = "0.1.1";
+export const SERVER_VERSION = "0.1.2";
 
 type CreateMessageRequest = z.infer<typeof CreateMessageRequestSchema>;
 

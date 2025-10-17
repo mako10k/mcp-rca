@@ -18,6 +18,7 @@ import { caseUpdateTool } from "./tools/case_update.js";
 import { conclusionTool } from "./tools/conclusion.js";
 import { hypothesisProposeTool } from "./tools/hypothesis.js";
 import { observationAddTool } from "./tools/observation.js";
+import { observationRemoveTool } from "./tools/observation_remove.js";
 import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
@@ -28,6 +29,7 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   caseListTool,
   caseUpdateTool,
   observationAddTool,
+  observationRemoveTool,
   hypothesisProposeTool,
   testPlanTool,
   prioritizeTool,

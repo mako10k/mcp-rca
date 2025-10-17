@@ -162,6 +162,52 @@ export async function addObservation(
   return { observation, case: updatedCase };
 }
 
+export interface RemoveObservationInput {
+  caseId: string;
+  observationId: string;
+}
+
+export interface RemoveObservationResult {
+  observation: Observation;
+  case: Case;
+}
+
+export async function removeObservation(
+  input: RemoveObservationInput,
+): Promise<RemoveObservationResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const observationIndex = cases[index].observations.findIndex(
+    (item) => item.id === input.observationId,
+  );
+
+  if (observationIndex === -1) {
+    throw new Error(`Observation ${input.observationId} not found in case ${input.caseId}`);
+  }
+
+  const [removedObservation] = cases[index].observations.splice(observationIndex, 1);
+  const now = new Date().toISOString();
+
+  const updatedCase: Case = {
+    ...cases[index],
+    observations: [...cases[index].observations],
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    observation: removedObservation,
+    case: updatedCase,
+  };
+}
+
 export interface GetCaseResult {
   case: Case;
 }

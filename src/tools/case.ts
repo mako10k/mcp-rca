@@ -3,9 +3,9 @@ import { createCase } from "../data/caseStore.js";
 import type { Case } from "../schema/case.js";
 import type { ToolContext, ToolDefinition } from "./types.js";
 
-const severitySchema = z.enum(["SEV1", "SEV2", "SEV3"]);
+export const severitySchema = z.enum(["SEV1", "SEV2", "SEV3"]);
 
-const caseSchema: z.ZodType<Case> = z.object({
+export const caseSchema: z.ZodType<Case> = z.object({
   id: z.string(),
   title: z.string(),
   severity: severitySchema,
@@ -47,7 +47,7 @@ export const caseCreateTool: ToolDefinition<CaseCreateInput, CaseCreateOutput> =
   inputSchema: caseCreateInputSchema,
   outputSchema: caseCreateOutputSchema,
   handler: async (input: CaseCreateInput, context: ToolContext) => {
-  const tags = normalizeTags(input.tags ?? []);
+    const tags = normalizeTags(input.tags ?? []);
     const result = await createCase({
       title: input.title,
       severity: input.severity,

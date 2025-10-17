@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import type { Case, Severity } from "../schema/case.js";
+import type { Case, Observation, Severity } from "../schema/case.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,4 +81,48 @@ export async function createCase(input: CreateCaseInput): Promise<CreateCaseResu
   await saveCases(cases);
 
   return { case: newCase };
+}
+
+export interface AddObservationInput {
+  caseId: string;
+  what: string;
+  context?: string;
+}
+
+export interface AddObservationResult {
+  observation: Observation;
+  case: Case;
+}
+
+export async function addObservation(
+  input: AddObservationInput,
+): Promise<AddObservationResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const now = new Date().toISOString();
+  const normalizedContext = input.context?.trim() ?? undefined;
+
+  const observation: Observation = {
+    id: `obs_${randomUUID()}`,
+    caseId: input.caseId,
+    what: input.what,
+    context: normalizedContext && normalizedContext.length > 0 ? normalizedContext : undefined,
+    createdAt: now,
+  };
+
+  const updatedCase: Case = {
+    ...cases[index],
+    observations: [...cases[index].observations, observation],
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return { observation, case: updatedCase };
 }

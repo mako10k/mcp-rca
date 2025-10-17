@@ -17,6 +17,7 @@
 | 名前 | 役割 | 主な入力 | 主な出力 |
 |------|------|----------|----------|
 | `case/create` | 新しい RCA ケースの作成 | `title`, `severity`, `tags?` | `caseId`, `case` |
+| `observation/add` | ケースに観測を追加 | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
 | `hypothesis/propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
 | `test/plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
 | `test/prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
@@ -54,7 +55,7 @@
 - 現在は永続化やケース管理ツールは実装されていない。
 
 ## 今後の拡張候補
-- ケース管理や観測登録ツールの復活 (`case/create`, `observation/add` 等)
+- ケース管理や観測登録ツールの復活 (`observation/add` の拡張や一覧取得など)
 - LLM クライアント統合による仮説生成の実装
 - `resources/subscribe` を利用した差分通知
 - 結論確定時のメタデータ (信頼度, 署名) 付加

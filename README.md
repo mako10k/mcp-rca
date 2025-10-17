@@ -27,7 +27,7 @@ src/
   tools/             # Tool handlers surfaced to MCP clients
   llm/               # Prompt assets and LLM utilities
 data/
-  cases.sqlite       # Placeholder persistence layer
+   cases.json         # JSON persistence generated at runtime
 ```
 
 Refer to `AGENT.md` for the full specification, roadmap, and design guidelines.

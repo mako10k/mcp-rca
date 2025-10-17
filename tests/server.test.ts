@@ -72,6 +72,23 @@ describe("mcp server", () => {
     expect(caseCreateResponse.result.structuredContent.case.title).toBe("Database outage");
     const createdCaseId = caseCreateResponse.result.structuredContent.caseId;
 
+    const observationResponse = await issueRequest(output, input, {
+      id: 4,
+      method: "tools/call",
+      params: {
+        name: "observation/add",
+        arguments: {
+          caseId: createdCaseId,
+          what: "Error budget burn detected",
+          context: "Latency dashboards spiked at 09:05 UTC",
+        },
+      },
+    });
+
+    expect(observationResponse.result.structuredContent.observation.what).toContain("Error budget burn");
+    expect(observationResponse.result.structuredContent.case.observations).toHaveLength(1);
+    expect(observationResponse.result.structuredContent.case.observations[0].caseId).toBe(createdCaseId);
+
     const prioritizeInput: PrioritizeInput = {
       strategy: "RICE",
       items: [
@@ -81,7 +98,7 @@ describe("mcp server", () => {
     };
 
     const toolCallResponse = await issueRequest(output, input, {
-      id: 4,
+      id: 5,
       method: "tools/call",
       params: { name: "test/prioritize", arguments: prioritizeInput },
     });
@@ -90,7 +107,7 @@ describe("mcp server", () => {
     expect(toolCallResponse.result.structuredContent.ranked[0].rank).toBe(1);
 
     const resourcesListResponse = await issueRequest(output, input, {
-      id: 5,
+      id: 6,
       method: "resources/list",
       params: {},
     });
@@ -103,7 +120,7 @@ describe("mcp server", () => {
     ).toBe(true);
 
     const resourceReadResponse = await issueRequest(output, input, {
-      id: 6,
+      id: 7,
       method: "resources/read",
       params: { uri: "doc://mcp-rca/README" },
     });

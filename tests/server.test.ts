@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { connectToTransport } from "../src/framework/mcpServerKit.js";
+import { LLMProviderManager } from "../src/llm/LLMProviderManager.js";
 import { buildServer, start } from "../src/server.js";
 import type { PrioritizeInput } from "../src/tools/prioritize.js";
 
@@ -34,6 +35,7 @@ describe("mcp server", () => {
       version: "0.1.0",
     });
     expect(initializeResponse.result.protocolVersion).toBe("2025-06-18");
+    expect(initializeResponse.result.capabilities.sampling).toEqual({});
 
     sendMessage(input, {
       jsonrpc: "2.0",
@@ -214,11 +216,50 @@ describe("mcp server", () => {
     const toolCallResponse = await issueRequest(output, input, {
       id: 12,
       method: "tools/call",
-  params: { name: "test_prioritize", arguments: prioritizeInput },
+      params: { name: "test_prioritize", arguments: prioritizeInput },
     });
 
     expect(toolCallResponse.result.structuredContent).toBeDefined();
     expect(toolCallResponse.result.structuredContent.ranked[0].rank).toBe(1);
+
+    const originalProvider = process.env.LLM_PROVIDER;
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    process.env.LLM_PROVIDER = "openai";
+    process.env.OPENAI_API_KEY = "test-key";
+    const llmSpy = vi
+      .spyOn(LLMProviderManager.prototype, "generateMessage")
+      .mockResolvedValue({ content: "Stub response", model: "test-model" });
+
+    const samplingResponse = await issueRequest(output, input, {
+      id: 15,
+      method: "sampling/createMessage",
+      params: {
+        messages: [
+          { role: "user", content: { type: "text", text: "Hello" } },
+        ],
+        maxTokens: 16,
+      },
+    });
+
+    expect(samplingResponse.error).toBeUndefined();
+    expect(samplingResponse.result).toEqual({
+      model: "test-model",
+      role: "assistant",
+      stopReason: "endTurn",
+      content: { type: "text", text: "Stub response" },
+    });
+
+    llmSpy.mockRestore();
+    if (originalProvider === undefined) {
+      delete process.env.LLM_PROVIDER;
+    } else {
+      process.env.LLM_PROVIDER = originalProvider;
+    }
+    if (originalOpenAiKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalOpenAiKey;
+    }
 
     const resourcesListResponse = await issueRequest(output, input, {
       id: 13,

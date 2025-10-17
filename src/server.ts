@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CreateMessageRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import {
   connectToTransport,
@@ -11,6 +12,10 @@ import {
   type ServerRequestExtra,
   type TransportStreams,
 } from "./framework/mcpServerKit.js";
+import { log } from "./logger.js";
+import { LLMProviderManager } from "./llm/LLMProviderManager.js";
+import { setSamplingServer } from "./llm/samplingClient.js";
+import type { LLMRequestOptions, Message } from "./llm/LLMProvider.js";
 import { caseCreateTool } from "./tools/case.js";
 import { caseGetTool } from "./tools/case_get.js";
 import { caseListTool } from "./tools/case_list.js";
@@ -23,6 +28,8 @@ import { observationUpdateTool } from "./tools/observation_update.js";
 import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
+
+type CreateMessageRequest = z.infer<typeof CreateMessageRequestSchema>;
 
 const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   caseCreateTool,
@@ -37,6 +44,9 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   prioritizeTool,
   conclusionTool,
 ];
+
+let samplingManager: LLMProviderManager | undefined;
+
 export async function buildServer(streams?: TransportStreams) {
   const server = createMcpServer({
     name: "mcp-rca",
@@ -46,6 +56,7 @@ export async function buildServer(streams?: TransportStreams) {
 
   TOOL_REGISTRY.forEach((tool) => registerTool(server, tool));
   await registerDefaultResources(server);
+  registerSamplingHandler(server);
 
   const transport = createTransport(streams);
   return { server, transport };
@@ -128,6 +139,97 @@ if (isDirectRun) {
   });
 }
 
+function registerSamplingHandler(server: McpServer) {
+  const underlying = server.server;
+  setSamplingServer(underlying);
+
+  underlying.setRequestHandler(CreateMessageRequestSchema, async (request: CreateMessageRequest) => {
+    const manager = getSamplingManager();
+    const { messages, systemPrompt, maxTokens, temperature, stopSequences, modelPreferences } = request.params;
+
+    if (messages.length === 0) {
+      throw new Error("sampling/createMessage requires at least one message");
+    }
+
+    const conversation: Message[] = [];
+
+    if (systemPrompt) {
+      conversation.push({ role: "system", content: systemPrompt });
+    }
+
+    for (const message of messages) {
+      if (message.content.type !== "text") {
+        throw new Error("sampling/createMessage only supports text content");
+      }
+
+      conversation.push({ role: message.role, content: message.content.text });
+    }
+
+    const llmOptions: LLMRequestOptions = { maxTokens };
+
+    if (typeof temperature === "number") {
+      llmOptions.temperature = temperature;
+    }
+
+    if (Array.isArray(stopSequences) && stopSequences.length > 0) {
+      llmOptions.stop = stopSequences;
+    }
+
+    const preferredModel = modelPreferences?.hints?.find((hint) =>
+      typeof hint.name === "string" && hint.name.trim().length > 0,
+    )?.name;
+
+    if (preferredModel) {
+      llmOptions.model = preferredModel;
+    }
+
+    try {
+      const response = await manager.generateMessage(conversation, llmOptions);
+
+      return {
+        model: response.model,
+        role: "assistant" as const,
+        stopReason: "endTurn" as const,
+        content: {
+          type: "text" as const,
+          text: response.content,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const providerUnavailable = /Provider '.+' not available/.test(errorMessage);
+      const failureMessage = providerUnavailable
+        ? "No LLM providers configured to handle sampling requests"
+        : errorMessage;
+
+      log({
+        level: "error",
+        component: "sampling",
+        message: "sampling/createMessage failed",
+        meta: { error: errorMessage },
+      });
+
+      throw new Error(failureMessage);
+    }
+  });
+}
+
+function getSamplingManager(): LLMProviderManager {
+  if (!samplingManager) {
+    const providerName = process.env.LLM_PROVIDER ?? "openai";
+    if (providerName === "sampling") {
+      throw new Error("LLM_PROVIDER 'sampling' cannot be used to service sampling/createMessage requests.");
+    }
+
+    samplingManager = new LLMProviderManager({
+      defaultProvider: providerName,
+      enableSamplingFallback: false,
+    });
+  }
+
+  return samplingManager;
+}
+
 function registerTool(server: McpServer, tool: ToolDefinition) {
   const inputSchema = (tool.inputSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
   const outputSchema = (tool.outputSchema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape;
@@ -162,28 +264,22 @@ function createToolContext(toolName: string, extra?: ServerRequestExtra): ToolCo
 
   const logger = {
     info: (message: string, meta?: unknown) => {
-      console.error(
-        JSON.stringify({
-          level: "info",
-          tool: toolName,
-          requestId,
-          message,
-          meta,
-          timestamp: new Date().toISOString(),
-        }),
-      );
+      log({
+        level: "info",
+        component: `tool:${toolName}`,
+        requestId,
+        message,
+        meta,
+      });
     },
     error: (message: string, meta?: unknown) => {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          tool: toolName,
-          requestId,
-          message,
-          meta,
-          timestamp: new Date().toISOString(),
-        }),
-      );
+      log({
+        level: "error",
+        component: `tool:${toolName}`,
+        requestId,
+        message,
+        meta,
+      });
     },
   };
 

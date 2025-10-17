@@ -5,13 +5,51 @@
   "license": "MIT",
   "type": "module",
   "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    }
+  },
+  "bin": {
+    "mcp-rca": "dist/server.js"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && npm run copy:assets",
     "start": "node dist/server.js",
     "start:mcp": "npm run build && node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "copy:assets": "node scripts/copy-assets.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mako10k/mcp-rca.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mako10k/mcp-rca/issues"
+  },
+  "homepage": "https://github.com/mako10k/mcp-rca#readme",
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "root cause analysis",
+    "incident response"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "AGENT.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.0",

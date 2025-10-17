@@ -52,7 +52,7 @@ let samplingManager: LLMProviderManager | undefined;
 export async function buildServer(streams?: TransportStreams) {
   const server = createMcpServer({
     name: "mcp-rca",
-    version: "0.1.0",
+  version: "0.1.1",
     title: "mcp-rca",
   });
 
@@ -66,12 +66,6 @@ export async function buildServer(streams?: TransportStreams) {
 
 export async function start(streams?: TransportStreams) {
   const { server, transport } = await buildServer(streams);
-  const input = streams?.input ?? process.stdin;
-
-  if ((input as NodeJS.ReadStream).isTTY) {
-    console.error("mcp-rca 0.1.0 operates as an MCP server over stdio. Launch it via an MCP-compatible client.");
-    return;
-  }
 
   await connectToTransport(server, transport);
 }
@@ -134,11 +128,48 @@ async function registerDefaultResources(server: McpServer) {
 const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
 
 if (isDirectRun) {
+  const cliOptions = parseCliOptions(process.argv.slice(2));
+
+  if (cliOptions.showVersion) {
+  console.log("mcp-rca v0.1.1");
+    process.exit(0);
+  }
+
+  if (cliOptions.showHelp) {
+    printHelp();
+    process.exit(0);
+  }
+
   start().catch((error) => {
     // eslint-disable-next-line no-console
     console.error("Failed to start mcp-rca server", error);
     process.exit(1);
   });
+}
+
+function parseCliOptions(args: string[]): { showHelp: boolean; showVersion: boolean } {
+  let showHelp = false;
+  let showVersion = false;
+
+  for (const arg of args) {
+    if (arg === "--help" || arg === "-h") {
+      showHelp = true;
+    }
+
+    if (arg === "--version" || arg === "-v") {
+      showVersion = true;
+    }
+  }
+
+  return { showHelp, showVersion };
+}
+
+function printHelp() {
+  console.log(`mcp-rca v0.1.1\n\n` +
+    `Usage: mcp-rca [options]\n\n` +
+    `Options:\n` +
+    `  --help, -h     Show this help message\n` +
+    `  --version, -v  Print the current version`);
 }
 
 function registerSamplingHandler(server: McpServer) {

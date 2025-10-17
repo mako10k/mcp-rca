@@ -14,7 +14,7 @@ To launch the server directly as a CLI:
 npx mcp-rca
 ```
 
-The server communicates over stdio and can be attached to any MCP-compatible client.
+The server communicates over stdio and can be attached to any MCP-compatible client. CLI flags include `--help` (`-h`) for usage and `--version` (`-v`) to print the current release.
 
 ## Getting Started (Development)
 

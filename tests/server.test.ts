@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { connectToTransport } from "../src/framework/mcpServerKit.js";
+import * as mcpServerKit from "../src/framework/mcpServerKit.js";
 import { LLMProviderManager } from "../src/llm/LLMProviderManager.js";
 import { buildServer, start } from "../src/server.js";
 import type { PrioritizeInput } from "../src/tools/prioritize.js";
@@ -16,8 +16,8 @@ describe("mcp server", () => {
   it("lists resources and tools and can service tool calls", async () => {
     const input = new PassThrough();
     const output = new PassThrough();
-    const { server, transport } = await buildServer({ input, output });
-    await connectToTransport(server, transport);
+  const { server, transport } = await buildServer({ input, output });
+  await mcpServerKit.connectToTransport(server, transport);
 
     const initializeResponse = await issueRequest(output, input, {
       id: 1,
@@ -32,7 +32,7 @@ describe("mcp server", () => {
     expect(initializeResponse.result.serverInfo).toEqual({
       name: "mcp-rca",
       title: "mcp-rca",
-      version: "0.1.0",
+  version: "0.1.1",
     });
     expect(initializeResponse.result.protocolVersion).toBe("2025-06-18");
     expect(initializeResponse.result.capabilities.sampling).toEqual({});
@@ -289,19 +289,19 @@ describe("mcp server", () => {
     await transport.close();
   });
 
-  it("prints a notice and returns when stdin is a TTY", async () => {
+  it("supports starting even when stdin is a TTY", async () => {
     const input = new PassThrough() as PassThrough & { isTTY: boolean };
     input.isTTY = true;
     const output = new PassThrough();
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const connectSpy = vi
+      .spyOn(mcpServerKit, "connectToTransport")
+      .mockResolvedValue();
 
     await expect(start({ input, output })).resolves.toBeUndefined();
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("mcp-rca 0.1.0 operates as an MCP server"),
-    );
+    expect(connectSpy).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
+    connectSpy.mockRestore();
   });
 });
 

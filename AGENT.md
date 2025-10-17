@@ -14,14 +14,19 @@
 
 ## 公開機能
 ### ツール
-| 名前 | 役割 | 主な入力 | 主な出力 |
-|------|------|----------|----------|
-| `case_create` | 新しい RCA ケースの作成 | `title`, `severity`, `tags?` | `caseId`, `case` |
-| `observation_add` | ケースに観測を追加 | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
-| `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
-| `test_plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
-| `test_prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
-| `conclusion_finalize` | 結論とフォローアップの確定 | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
+> **Status Legend**: 実装済み ✅ / 設計済み (未実装) ✳️
+
+| 名前 | 役割 | ステータス | 主な入力 | 主な出力 |
+|------|------|-----------|----------|----------|
+| `case_create` | 新しい RCA ケースの作成 | ✅ | `title`, `severity`, `tags?` | `caseId`, `case` |
+| `case_get` | 単一ケースの詳細取得 (関連オブジェクトに制限付きページング) | ✳️ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | `case`, `cursors?` |
+| `case_list` | ケース一覧・検索 (ページング付き) | ✳️ | `query?`, `tags?`, `severity?`, `includeArchived?`, `pageSize?`, `cursor?` | `cases[]`, `nextCursor?`, `total?` |
+| `case_update` | ケースのメタデータ更新とアーカイブ管理 | ✳️ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `case` |
+| `observation_add` | ケースに観測を追加 | ✅ | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
+| `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
+| `test_plan` | 仮説検証手順の作成 | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
+| `test_prioritize` | テスト計画の優先順位決定 (RICE/ICE) | ✅ | `strategy`, `items[]` | `ranked[]` |
+| `conclusion_finalize` | 結論とフォローアップの確定 | ✅ | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
 
 すべてのツールは Zod スキーマで検証され、`structuredContent` (JSON) と整形済みテキストを返します。
 
@@ -42,6 +47,14 @@
 3. 仮説生成 (`hypothesis_propose`) → テスト計画 (`test_plan`) → 優先順位付け (`test_prioritize`) → 結論整理 (`conclusion_finalize`) の順に利用できる。
 4. いつでも `resources/read` で補助ドキュメントを取得可能。
 
+### ケース管理機能の設計方針
+- **ツール数の抑制**: ケース CRUD は `case_create`, `case_get`, `case_list`, `case_update` の 4 本に集約し、削除は `case_update` の `status: "archived"` 指定でソフトデリートとする。
+- **`case_get`**: 必須入力は `caseId`。`include` 配列で `observations` を指定した場合のみ観測を返す。観測は `observationCursor`/`observationLimit` (デフォルト 20, 最大 100) でページングし、結果に `cursors.nextObservationCursor?` を付与する。
+- **`case_list`**: フィルター (`query` はタイトル/タグ前方一致、`tags` は AND 条件、`severity`, `includeArchived`) とページング (`pageSize` デフォルト 20, 上限 50)。`cursor` は `base64(JSON.stringify({ offset, filtersHash }))` 形式とし、結果に `nextCursor` と `total` (最大 1000 件までカウント) を含める。
+- **`case_update`**: 任意フィールドのみ更新。`status` は `active` / `archived` を想定し、アーカイブ済みケースは `case_list` の既定値で非表示。
+- **観測の扱い**: CRUD の C にあたる `observation_add` を継続採用。観測の一覧取得は `case_get` のページング機能で対応し、個別更新・削除は今後必要になった際に検討する。
+- **整合性**: `case_update` 実行後は `updatedAt` を更新し、キャッシュ整合性のため `case_listChanged` 通知を検討 (未実装)。
+
 ## 開発・運用メモ
 - ビルド: `npm run build`
 - MCP サーバ起動: `npm run start` または `node dist/server.js`
@@ -55,7 +68,7 @@
 - 現在は永続化やケース管理ツールは実装されていない。
 
 ## 今後の拡張候補
-- ケース管理や観測登録ツールの復活 (`observation_add` の拡張や一覧取得など)
+- ケース管理や観測登録ツール群 (`case_get`, `case_list`, `case_update`) の実装と `observation_add` の拡張
 - LLM クライアント統合による仮説生成の実装
 - `resources/subscribe` を利用した差分通知
 - 結論確定時のメタデータ (信頼度, 署名) 付加

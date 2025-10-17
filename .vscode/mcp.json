@@ -8,7 +8,9 @@
 				"start:mcp"
 			],
 			"dev": {
-				"watch": "src/**/*.ts"
+				"watch": [
+					"src/**/*.ts"
+				]
 			}
 		},
 		"memory-mcp": {

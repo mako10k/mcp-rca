@@ -33,7 +33,7 @@ export const hypothesisProposeTool: ToolDefinition<
   HypothesisProposeInput,
   HypothesisProposeOutput
 > = {
-  name: "hypothesis/propose",
+  name: "hypothesis_propose",
   description:
     "Generate up to 3 testable root cause hypotheses using the current case knowledge base.",
   inputSchema: hypothesisProposeInputSchema,

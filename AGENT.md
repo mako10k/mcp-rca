@@ -16,12 +16,12 @@
 ### ツール
 | 名前 | 役割 | 主な入力 | 主な出力 |
 |------|------|----------|----------|
-| `case/create` | 新しい RCA ケースの作成 | `title`, `severity`, `tags?` | `caseId`, `case` |
-| `observation/add` | ケースに観測を追加 | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
-| `hypothesis/propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
-| `test/plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
-| `test/prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
-| `conclusion/finalize` | 結論とフォローアップの確定 | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
+| `case_create` | 新しい RCA ケースの作成 | `title`, `severity`, `tags?` | `caseId`, `case` |
+| `observation_add` | ケースに観測を追加 | `caseId`, `what`, `context?` | `caseId`, `observation`, `case` |
+| `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
+| `test_plan` | 仮説検証手順の作成 | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
+| `test_prioritize` | テスト計画の優先順位決定 (RICE/ICE) | `strategy`, `items[]` | `ranked[]` |
+| `conclusion_finalize` | 結論とフォローアップの確定 | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
 
 すべてのツールは Zod スキーマで検証され、`structuredContent` (JSON) と整形済みテキストを返します。
 
@@ -39,7 +39,7 @@
 ## 典型的なワークフロー
 1. クライアントが `initialize` を送信すると、サーバはサポートバージョンをネゴシエートし capabilities を返す。
 2. `tools/list` で 4 種類のツールが紹介される。
-3. 仮説生成 (`hypothesis/propose`) → テスト計画 (`test/plan`) → 優先順位付け (`test/prioritize`) → 結論整理 (`conclusion/finalize`) の順に利用できる。
+3. 仮説生成 (`hypothesis_propose`) → テスト計画 (`test_plan`) → 優先順位付け (`test_prioritize`) → 結論整理 (`conclusion_finalize`) の順に利用できる。
 4. いつでも `resources/read` で補助ドキュメントを取得可能。
 
 ## 開発・運用メモ
@@ -55,7 +55,7 @@
 - 現在は永続化やケース管理ツールは実装されていない。
 
 ## 今後の拡張候補
-- ケース管理や観測登録ツールの復活 (`observation/add` の拡張や一覧取得など)
+- ケース管理や観測登録ツールの復活 (`observation_add` の拡張や一覧取得など)
 - LLM クライアント統合による仮説生成の実装
 - `resources/subscribe` を利用した差分通知
 - 結論確定時のメタデータ (信頼度, 署名) 付加

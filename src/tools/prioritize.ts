@@ -28,7 +28,7 @@ export type PrioritizeInput = z.infer<typeof prioritizeInputSchema>;
 export type PrioritizeOutput = z.infer<typeof prioritizeOutputSchema>;
 
 export const prioritizeTool: ToolDefinition<PrioritizeInput, PrioritizeOutput> = {
-  name: "test/prioritize",
+  name: "test_prioritize",
   description: "Rank queued test plans using RICE or ICE scoring heuristics.",
   inputSchema: prioritizeInputSchema,
   outputSchema: prioritizeOutputSchema,

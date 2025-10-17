@@ -42,7 +42,7 @@ function normalizeTags(tags: string[]): string[] {
 }
 
 export const caseCreateTool: ToolDefinition<CaseCreateInput, CaseCreateOutput> = {
-  name: "case/create",
+  name: "case_create",
   description: "Create a new RCA case with metadata for subsequent investigation.",
   inputSchema: caseCreateInputSchema,
   outputSchema: caseCreateOutputSchema,

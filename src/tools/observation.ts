@@ -28,7 +28,7 @@ export type ObservationAddInput = z.infer<typeof observationAddInputSchema>;
 export type ObservationAddOutput = z.infer<typeof observationAddOutputSchema>;
 
 export const observationAddTool: ToolDefinition<ObservationAddInput, ObservationAddOutput> = {
-  name: "observation/add",
+  name: "observation_add",
   description: "Append a new observation to an existing RCA case.",
   inputSchema: observationAddInputSchema,
   outputSchema: observationAddOutputSchema,

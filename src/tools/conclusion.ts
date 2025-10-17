@@ -28,7 +28,7 @@ export type ConclusionInput = z.infer<typeof conclusionInputSchema>;
 export type ConclusionOutput = z.infer<typeof conclusionOutputSchema>;
 
 export const conclusionTool: ToolDefinition<ConclusionInput, ConclusionOutput> = {
-  name: "conclusion/finalize",
+  name: "conclusion_finalize",
   description: "Close the RCA case with the agreed root cause and follow-up actions.",
   inputSchema: conclusionInputSchema,
   outputSchema: conclusionOutputSchema,

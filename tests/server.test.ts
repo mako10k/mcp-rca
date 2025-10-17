@@ -50,8 +50,8 @@ describe("mcp server", () => {
     expect(Array.isArray(toolsListResponse.result.tools)).toBe(true);
     expect(toolsListResponse.result.tools).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: "case/create" }),
-        expect.objectContaining({ name: "test/prioritize" }),
+        expect.objectContaining({ name: "case_create" }),
+        expect.objectContaining({ name: "test_prioritize" }),
       ]),
     );
 
@@ -59,7 +59,7 @@ describe("mcp server", () => {
       id: 3,
       method: "tools/call",
       params: {
-        name: "case/create",
+  name: "case_create",
         arguments: {
           title: "Database outage",
           severity: "SEV2",
@@ -76,7 +76,7 @@ describe("mcp server", () => {
       id: 4,
       method: "tools/call",
       params: {
-        name: "observation/add",
+  name: "observation_add",
         arguments: {
           caseId: createdCaseId,
           what: "Error budget burn detected",
@@ -100,7 +100,7 @@ describe("mcp server", () => {
     const toolCallResponse = await issueRequest(output, input, {
       id: 5,
       method: "tools/call",
-      params: { name: "test/prioritize", arguments: prioritizeInput },
+  params: { name: "test_prioritize", arguments: prioritizeInput },
     });
 
     expect(toolCallResponse.result.structuredContent).toBeDefined();

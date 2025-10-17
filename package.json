@@ -13,7 +13,7 @@
     }
   },
   "bin": {
-    "mcp-rca": "dist/server.js"
+    "mcp-rca": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run copy:assets",

@@ -5,7 +5,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import * as mcpServerKit from "../src/framework/mcpServerKit.js";
 import { LLMProviderManager } from "../src/llm/LLMProviderManager.js";
-import { buildServer, start } from "../src/server.js";
+import { buildServer, start, SERVER_VERSION } from "../src/server.js";
 import type { PrioritizeInput } from "../src/tools/prioritize.js";
 
 const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-tests-"));
@@ -16,8 +16,8 @@ describe("mcp server", () => {
   it("lists resources and tools and can service tool calls", async () => {
     const input = new PassThrough();
     const output = new PassThrough();
-  const { server, transport } = await buildServer({ input, output });
-  await mcpServerKit.connectToTransport(server, transport);
+    const { server, transport } = await buildServer({ input, output });
+    await mcpServerKit.connectToTransport(server, transport);
 
     const initializeResponse = await issueRequest(output, input, {
       id: 1,
@@ -32,7 +32,7 @@ describe("mcp server", () => {
     expect(initializeResponse.result.serverInfo).toEqual({
       name: "mcp-rca",
       title: "mcp-rca",
-  version: "0.1.1",
+      version: SERVER_VERSION,
     });
     expect(initializeResponse.result.protocolVersion).toBe("2025-06-18");
     expect(initializeResponse.result.capabilities.sampling).toEqual({});

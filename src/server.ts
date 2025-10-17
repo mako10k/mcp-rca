@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /* eslint-disable no-console */
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -31,6 +30,8 @@ import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
+export const SERVER_VERSION = "0.1.1";
+
 type CreateMessageRequest = z.infer<typeof CreateMessageRequestSchema>;
 
 const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
@@ -52,7 +53,7 @@ let samplingManager: LLMProviderManager | undefined;
 export async function buildServer(streams?: TransportStreams) {
   const server = createMcpServer({
     name: "mcp-rca",
-  version: "0.1.1",
+    version: SERVER_VERSION,
     title: "mcp-rca",
   });
 
@@ -123,53 +124,6 @@ async function registerDefaultResources(server: McpServer) {
       }
     }),
   );
-}
-
-const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
-
-if (isDirectRun) {
-  const cliOptions = parseCliOptions(process.argv.slice(2));
-
-  if (cliOptions.showVersion) {
-  console.log("mcp-rca v0.1.1");
-    process.exit(0);
-  }
-
-  if (cliOptions.showHelp) {
-    printHelp();
-    process.exit(0);
-  }
-
-  start().catch((error) => {
-    // eslint-disable-next-line no-console
-    console.error("Failed to start mcp-rca server", error);
-    process.exit(1);
-  });
-}
-
-function parseCliOptions(args: string[]): { showHelp: boolean; showVersion: boolean } {
-  let showHelp = false;
-  let showVersion = false;
-
-  for (const arg of args) {
-    if (arg === "--help" || arg === "-h") {
-      showHelp = true;
-    }
-
-    if (arg === "--version" || arg === "-v") {
-      showVersion = true;
-    }
-  }
-
-  return { showHelp, showVersion };
-}
-
-function printHelp() {
-  console.log(`mcp-rca v0.1.1\n\n` +
-    `Usage: mcp-rca [options]\n\n` +
-    `Options:\n` +
-    `  --help, -h     Show this help message\n` +
-    `  --version, -v  Print the current version`);
 }
 
 function registerSamplingHandler(server: McpServer) {

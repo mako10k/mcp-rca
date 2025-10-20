@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import type { Case, CaseStatus, Observation, Severity } from "../schema/case.js";
 import type { Hypothesis, TestPlan } from "../schema/hypothesis.js";
+import { logger } from "../logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,7 +73,7 @@ async function loadCases(): Promise<Case[]> {
       return data.map((entry) => normalizeCase(entry));
     }
   } catch (error) {
-    console.error("Failed to parse cases.json; resetting store", error);
+    logger.error("Failed to parse cases.json; resetting store", "caseStore", { error });
   }
   await writeFile(getCasesFilePath(), "[]", "utf8");
   return [];

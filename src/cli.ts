@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 import process from "node:process";
 import { start, SERVER_VERSION } from "./server.js";
+import { logger } from "./logger.js";
 
 function parseArguments(args: string[]) {
   let showHelp = false;
@@ -46,7 +47,7 @@ async function main(): Promise<void> {
   try {
     await start();
   } catch (error) {
-    console.error("Failed to start mcp-rca server", error);
+    logger.error("Failed to start mcp-rca server", "cli", { error });
     process.exitCode = 1;
   }
 }

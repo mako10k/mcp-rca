@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HypothesisProposeInput } from "../tools/hypothesis.js";
 import { LLMProviderManager } from "./LLMProviderManager.js";
+import { logger } from "../logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -116,7 +117,7 @@ export async function generateHypotheses(
         defaultProvider: process.env.LLM_PROVIDER || 'sampling',
       });
     } catch (error) {
-      console.warn('Failed to initialize LLM manager:', error);
+      logger.warn("Failed to initialize LLM manager", "llm", { error });
     }
   }
 

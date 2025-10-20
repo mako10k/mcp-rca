@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -132,7 +131,12 @@ async function registerDefaultResources(server: McpServer) {
           }),
         );
       } catch (error) {
-        console.error(`Failed to register resource ${resource.uri}`, error);
+        log({
+          level: "error",
+          component: "resources",
+          message: `Failed to register resource ${resource.uri}`,
+          meta: { error },
+        });
       }
     }),
   );

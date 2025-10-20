@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { ToolDefinition } from "./types.js";
+import { addTestPlan } from "../data/caseStore.js";
+import type { ToolDefinition, ToolContext } from "./types.js";
 
 const testPlanInputSchema = z.object({
   caseId: z.string(),
@@ -24,10 +25,11 @@ export const testPlanTool: ToolDefinition<TestPlanInput, TestPlanOutput> = {
     "Create a verification plan for a hypothesis, including the method, metrics, and expected signals.",
   inputSchema: testPlanInputSchema,
   outputSchema: testPlanOutputSchema,
-  handler: async (input: TestPlanInput) => {
-    // Placeholder implementation until persistence is connected.
+  handler: async (input: TestPlanInput, context: ToolContext) => {
+    context.logger?.info("Creating test plan", { caseId: input.caseId, hypothesisId: input.hypothesisId });
+    const result = await addTestPlan(input);
     return {
-      testPlanId: `tp_${Date.now()}`,
+      testPlanId: result.testPlan.id,
       status: "draft",
       notes: `Draft plan created for hypothesis ${input.hypothesisId}`,
     };

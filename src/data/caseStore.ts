@@ -749,6 +749,61 @@ export interface BulkDeleteProvisionalInput {
   priorityThreshold?: number; // Default 3
 }
 
+export interface AddTestPlanInput {
+  caseId: string;
+  hypothesisId: string;
+  method: string;
+  expected: string;
+  metric?: string;
+}
+
+export interface AddTestPlanResult {
+  testPlan: TestPlan;
+  case: Case;
+}
+
+export async function addTestPlan(
+  input: AddTestPlanInput,
+): Promise<AddTestPlanResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  // Verify hypothesis exists
+  const hypothesisExists = cases[index].hypotheses.some((h) => h.id === input.hypothesisId);
+  if (!hypothesisExists) {
+    throw new Error(`Hypothesis ${input.hypothesisId} not found in case ${input.caseId}`);
+  }
+
+  const now = new Date().toISOString();
+  const normalizedMetric = input.metric?.trim() ?? undefined;
+
+  const testPlan: TestPlan = {
+    id: `tp_${randomUUID()}`,
+    caseId: input.caseId,
+    hypothesisId: input.hypothesisId,
+    method: input.method,
+    expected: input.expected,
+    metric: normalizedMetric && normalizedMetric.length > 0 ? normalizedMetric : undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const updatedCase: Case = {
+    ...cases[index],
+    tests: [...cases[index].tests, testPlan],
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return { testPlan, case: updatedCase };
+}
+
 export interface BulkDeleteProvisionalResult {
   deletedHypotheses: Hypothesis[];
   deletedTestPlans: TestPlan[];

@@ -75,7 +75,8 @@
 - MCP クライアントからは **必ずビルド済みバンドル** を実行する。`npm run dev` を使うと `tsx` が STDOUT にログを出し、クライアントが JSON を解釈できなくなる。
 
 ## ロギング / エラーハンドリング
-- ツール実行時は JSON 形式の構造化ログを `stderr` に出力 (level, tool, requestId, message を含む)。
+- すべてのサーバ内ロギングは `src/logger.ts` のユーティリティを経由し、JSON 形式の構造化メッセージを `stderr` へ送出すること。`console.*` の直接利用は CLI の help/version 表示などユーザー向け標準出力が必要な場面に限定する。
+- ツール実行時は level / component / requestId / message を含む構造化ログを出力する。
 - SDK 経由で `tools/listChanged` / `resources/listChanged` 通知を送信。
 - 現在は永続化やケース管理ツールは実装されていない。
 

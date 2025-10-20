@@ -35,7 +35,7 @@ import { testPlanRemoveTool } from "./tools/test_plan_remove.js";
 import { bulkDeleteProvisionalTool } from "./tools/bulk_delete_provisional.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
-export const SERVER_VERSION = "0.1.2";
+export const SERVER_VERSION = "0.2.1";
 
 type CreateMessageRequest = z.infer<typeof CreateMessageRequestSchema>;
 
@@ -82,37 +82,70 @@ export async function start(streams?: TransportStreams) {
   await connectToTransport(server, transport);
 }
 
+async function loadFirstAvailable(paths: string[]): Promise<{ path: string; text: string }> {
+  const attempts: Array<{ path: string; error: unknown }> = [];
+
+  for (const candidate of paths) {
+    try {
+      const text = await readFile(candidate, "utf8");
+      return { path: candidate, text };
+    } catch (error) {
+      const errno = (error as NodeJS.ErrnoException).code;
+      attempts.push({ path: candidate, error: errno === "ENOENT" ? undefined : error });
+      if (errno !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  const error = new Error(`Resource not found in any candidate paths: ${paths.join(", ")}`);
+  (error as Error & { attempts?: Array<{ path: string; error: unknown }> }).attempts = attempts;
+  throw error;
+}
+
 async function registerDefaultResources(server: McpServer) {
-  const rootDir = fileURLToPath(new URL("..", import.meta.url));
+  const moduleDir = fileURLToPath(new URL("..", import.meta.url));
+  const projectRoot = resolve(moduleDir, "..");
 
   const resources = [
     {
       uri: "doc://mcp-rca/README",
       name: "Project README",
       description: "High-level overview and setup instructions for mcp-rca.",
-      path: resolve(rootDir, "README.md"),
       mimeType: "text/markdown",
+      candidates: [
+        resolve(moduleDir, "README.md"),
+        resolve(projectRoot, "README.md"),
+      ],
     },
     {
       uri: "doc://mcp-rca/AGENT",
       name: "Agent Specification",
       description: "Detailed design goals and capabilities of the RCA MCP agent.",
-      path: resolve(rootDir, "AGENT.md"),
       mimeType: "text/markdown",
+      candidates: [
+        resolve(moduleDir, "AGENT.md"),
+        resolve(projectRoot, "AGENT.md"),
+      ],
     },
     {
       uri: "doc://mcp-rca/prompts/hypothesis",
       name: "Hypothesis Prompt",
       description: "Prompt template used for generating RCA hypotheses.",
-      path: resolve(rootDir, "src", "llm", "prompts", "hypothesis.md"),
       mimeType: "text/markdown",
+      candidates: [
+        resolve(moduleDir, "src", "llm", "prompts", "hypothesis.md"),
+        resolve(projectRoot, "src", "llm", "prompts", "hypothesis.md"),
+        resolve(moduleDir, "dist", "llm", "prompts", "hypothesis.md"),
+        resolve(projectRoot, "dist", "llm", "prompts", "hypothesis.md"),
+      ],
     },
   ];
 
   await Promise.all(
     resources.map(async (resource) => {
       try {
-        await readFile(resource.path, "utf8");
+        await loadFirstAvailable(resource.candidates);
         server.registerResource(
           resource.name,
           resource.uri,
@@ -120,22 +153,25 @@ async function registerDefaultResources(server: McpServer) {
             description: resource.description,
             mimeType: resource.mimeType,
           },
-          async () => ({
-            contents: [
-              {
-                uri: resource.uri,
-                mimeType: resource.mimeType,
-                text: await readFile(resource.path, "utf8"),
-              },
-            ],
-          }),
+          async () => {
+            const { text } = await loadFirstAvailable(resource.candidates);
+            return {
+              contents: [
+                {
+                  uri: resource.uri,
+                  mimeType: resource.mimeType,
+                  text,
+                },
+              ],
+            };
+          },
         );
       } catch (error) {
         log({
           level: "error",
           component: "resources",
           message: `Failed to register resource ${resource.uri}`,
-          meta: { error },
+          meta: { error, attemptedPaths: resource.candidates },
         });
       }
     }),

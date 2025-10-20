@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import type { Case, CaseStatus, Observation, Severity } from "../schema/case.js";
+import type { Hypothesis, TestPlan } from "../schema/hypothesis.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -160,6 +161,53 @@ export async function addObservation(
   await saveCases(cases);
 
   return { observation, case: updatedCase };
+}
+
+export interface AddHypothesisInput {
+  caseId: string;
+  text: string;
+  rationale?: string;
+  confidence?: number;
+}
+
+export interface AddHypothesisResult {
+  hypothesis: Hypothesis;
+  case: Case;
+}
+
+export async function addHypothesis(
+  input: AddHypothesisInput,
+): Promise<AddHypothesisResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const now = new Date().toISOString();
+  const normalizedRationale = input.rationale?.trim() ?? undefined;
+
+  const hypothesis: Hypothesis = {
+    id: `hyp_${randomUUID()}`,
+    caseId: input.caseId,
+    text: input.text,
+    rationale: normalizedRationale && normalizedRationale.length > 0 ? normalizedRationale : undefined,
+    confidence: input.confidence,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const updatedCase: Case = {
+    ...cases[index],
+    hypotheses: [...cases[index].hypotheses, hypothesis],
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return { hypothesis, case: updatedCase };
 }
 
 export interface RemoveObservationInput {
@@ -448,4 +496,314 @@ export async function updateCase(input: UpdateCaseInput): Promise<UpdateCaseResu
   await saveCases(cases);
 
   return { case: updated };
+}
+
+export interface UpdateHypothesisInput {
+  caseId: string;
+  hypothesisId: string;
+  text?: string;
+  rationale?: string | null;
+  confidence?: number | null;
+}
+
+export interface UpdateHypothesisResult {
+  hypothesis: Hypothesis;
+  case: Case;
+}
+
+export async function updateHypothesis(
+  input: UpdateHypothesisInput,
+): Promise<UpdateHypothesisResult> {
+  const cases = await loadCases();
+  const caseIndex = cases.findIndex((item) => item.id === input.caseId);
+
+  if (caseIndex === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const hypothesisIndex = cases[caseIndex].hypotheses.findIndex(
+    (item) => item.id === input.hypothesisId,
+  );
+
+  if (hypothesisIndex === -1) {
+    throw new Error(`Hypothesis ${input.hypothesisId} not found in case ${input.caseId}`);
+  }
+
+  const original = cases[caseIndex].hypotheses[hypothesisIndex];
+
+  const updatedHypothesis: Hypothesis = {
+    ...original,
+    text: input.text !== undefined && input.text.trim().length > 0 ? input.text.trim() : original.text,
+    rationale:
+      input.rationale !== undefined
+        ? input.rationale === null || input.rationale.trim().length === 0
+          ? undefined
+          : input.rationale.trim()
+        : original.rationale,
+    confidence: input.confidence !== undefined ? (input.confidence === null ? undefined : input.confidence) : original.confidence,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const now = new Date().toISOString();
+  const updatedCase: Case = {
+    ...cases[caseIndex],
+    hypotheses: cases[caseIndex].hypotheses.map((item, idx) =>
+      idx === hypothesisIndex ? updatedHypothesis : item,
+    ),
+    updatedAt: now,
+  };
+
+  cases[caseIndex] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    hypothesis: updatedHypothesis,
+    case: updatedCase,
+  };
+}
+
+export interface RemoveHypothesisInput {
+  caseId: string;
+  hypothesisId: string;
+}
+
+export interface RemoveHypothesisResult {
+  hypothesis: Hypothesis;
+  case: Case;
+}
+
+export async function removeHypothesis(
+  input: RemoveHypothesisInput,
+): Promise<RemoveHypothesisResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const hypothesisIndex = cases[index].hypotheses.findIndex(
+    (item) => item.id === input.hypothesisId,
+  );
+
+  if (hypothesisIndex === -1) {
+    throw new Error(`Hypothesis ${input.hypothesisId} not found in case ${input.caseId}`);
+  }
+
+  const [removedHypothesis] = cases[index].hypotheses.splice(hypothesisIndex, 1);
+  const now = new Date().toISOString();
+
+  const updatedCase: Case = {
+    ...cases[index],
+    hypotheses: [...cases[index].hypotheses],
+    // Also remove related test plans
+    tests: cases[index].tests.filter((test) => test.hypothesisId !== input.hypothesisId),
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    hypothesis: removedHypothesis,
+    case: updatedCase,
+  };
+}
+
+export interface UpdateTestPlanInput {
+  caseId: string;
+  testPlanId: string;
+  method?: string;
+  expected?: string;
+  metric?: string | null;
+  priority?: number | null;
+}
+
+export interface UpdateTestPlanResult {
+  testPlan: TestPlan;
+  case: Case;
+}
+
+export async function updateTestPlan(
+  input: UpdateTestPlanInput,
+): Promise<UpdateTestPlanResult> {
+  const cases = await loadCases();
+  const caseIndex = cases.findIndex((item) => item.id === input.caseId);
+
+  if (caseIndex === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const testPlanIndex = cases[caseIndex].tests.findIndex(
+    (item) => item.id === input.testPlanId,
+  );
+
+  if (testPlanIndex === -1) {
+    throw new Error(`Test plan ${input.testPlanId} not found in case ${input.caseId}`);
+  }
+
+  const original = cases[caseIndex].tests[testPlanIndex];
+
+  const updatedTestPlan: TestPlan = {
+    ...original,
+    method: input.method !== undefined && input.method.trim().length > 0 ? input.method.trim() : original.method,
+    expected: input.expected !== undefined && input.expected.trim().length > 0 ? input.expected.trim() : original.expected,
+    metric:
+      input.metric !== undefined
+        ? input.metric === null || input.metric.trim().length === 0
+          ? undefined
+          : input.metric.trim()
+        : original.metric,
+    priority: input.priority !== undefined ? (input.priority === null ? undefined : input.priority) : original.priority,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const now = new Date().toISOString();
+  const updatedCase: Case = {
+    ...cases[caseIndex],
+    tests: cases[caseIndex].tests.map((item, idx) =>
+      idx === testPlanIndex ? updatedTestPlan : item,
+    ),
+    updatedAt: now,
+  };
+
+  cases[caseIndex] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    testPlan: updatedTestPlan,
+    case: updatedCase,
+  };
+}
+
+export interface RemoveTestPlanInput {
+  caseId: string;
+  testPlanId: string;
+}
+
+export interface RemoveTestPlanResult {
+  testPlan: TestPlan;
+  case: Case;
+}
+
+export async function removeTestPlan(
+  input: RemoveTestPlanInput,
+): Promise<RemoveTestPlanResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const testPlanIndex = cases[index].tests.findIndex(
+    (item) => item.id === input.testPlanId,
+  );
+
+  if (testPlanIndex === -1) {
+    throw new Error(`Test plan ${input.testPlanId} not found in case ${input.caseId}`);
+  }
+
+  const [removedTestPlan] = cases[index].tests.splice(testPlanIndex, 1);
+  const now = new Date().toISOString();
+
+  const updatedCase: Case = {
+    ...cases[index],
+    tests: [...cases[index].tests],
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    testPlan: removedTestPlan,
+    case: updatedCase,
+  };
+}
+
+export interface FinalizeHypothesisInput {
+  caseId: string;
+  hypothesisId: string;
+}
+
+export interface FinalizeHypothesisResult {
+  hypothesis: Hypothesis;
+  case: Case;
+}
+
+export async function finalizeHypothesis(
+  input: FinalizeHypothesisInput,
+): Promise<FinalizeHypothesisResult> {
+  // Finalize by setting confidence to 1.0
+  return updateHypothesis({
+    caseId: input.caseId,
+    hypothesisId: input.hypothesisId,
+    confidence: 1.0,
+  });
+}
+
+export interface BulkDeleteProvisionalInput {
+  caseId: string;
+  confidenceThreshold?: number; // Default 0.5
+  priorityThreshold?: number; // Default 3
+}
+
+export interface BulkDeleteProvisionalResult {
+  deletedHypotheses: Hypothesis[];
+  deletedTestPlans: TestPlan[];
+  case: Case;
+}
+
+export async function bulkDeleteProvisional(
+  input: BulkDeleteProvisionalInput,
+): Promise<BulkDeleteProvisionalResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const confidenceThreshold = input.confidenceThreshold ?? 0.5;
+  const priorityThreshold = input.priorityThreshold ?? 3;
+
+  const deletedHypotheses: Hypothesis[] = [];
+  const deletedTestPlans: TestPlan[] = [];
+
+  // Filter hypotheses to delete: confidence < threshold or confidence is null
+  const remainingHypotheses = cases[index].hypotheses.filter((hyp) => {
+    const shouldDelete = (hyp.confidence ?? 0) < confidenceThreshold;
+    if (shouldDelete) {
+      deletedHypotheses.push(hyp);
+    }
+    return !shouldDelete;
+  });
+
+  // Filter test plans to delete: priority > threshold or priority is null, or related hypothesis is deleted
+  const deletedHypothesisIds = new Set(deletedHypotheses.map(h => h.id));
+  const remainingTestPlans = cases[index].tests.filter((test) => {
+    const shouldDelete = (test.priority ?? 0) > priorityThreshold || deletedHypothesisIds.has(test.hypothesisId);
+    if (shouldDelete) {
+      deletedTestPlans.push(test);
+    }
+    return !shouldDelete;
+  });
+
+  const now = new Date().toISOString();
+  const updatedCase: Case = {
+    ...cases[index],
+    hypotheses: remainingHypotheses,
+    tests: remainingTestPlans,
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return {
+    deletedHypotheses,
+    deletedTestPlans,
+    case: updatedCase,
+  };
 }

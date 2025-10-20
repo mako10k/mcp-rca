@@ -26,8 +26,14 @@
 | `observation_remove` | ケースから観測を削除 (ソフトデリート) | ✅ | `caseId`, `observationId` | `caseId`, `observation`, `case` |
 | `observation_update` | 観測内容の更新 | ✅ | `caseId`, `observationId`, `what?`, `context?` | `caseId`, `observation`, `case` |
 | `hypothesis_propose` | 仮説案の生成 (LLM 呼び出しは未実装でプレースホルダー応答) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | `hypotheses[]` |
+| `hypothesis_update` | 仮説の更新 | ✅ | `caseId`, `hypothesisId`, `text?`, `rationale?`, `confidence?` | `hypothesis`, `case` |
+| `hypothesis_remove` | 仮説の削除 (関連テストプランも削除) | ✅ | `caseId`, `hypothesisId` | `hypothesis`, `case` |
+| `hypothesis_finalize` | 仮説の本登録化 (confidence を 1.0 に設定) | ✅ | `caseId`, `hypothesisId` | `hypothesis`, `case` |
 | `test_plan` | 仮説検証手順の作成 | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `testPlanId`, `status`, `notes` |
+| `test_plan_update` | テストプランの更新 | ✅ | `caseId`, `testPlanId`, `method?`, `expected?`, `metric?`, `priority?` | `testPlan`, `case` |
+| `test_plan_remove` | テストプランの削除 | ✅ | `caseId`, `testPlanId` | `testPlan`, `case` |
 | `test_prioritize` | テスト計画の優先順位決定 (RICE/ICE) | ✅ | `strategy`, `items[]` | `ranked[]` |
+| `bulk_delete_provisional` | 仮登録の一括削除 (confidence/priority 閾値に基づく) | ✅ | `caseId`, `confidenceThreshold?`, `priorityThreshold?` | `deletedHypotheses[]`, `deletedTestPlans[]`, `case` |
 | `conclusion_finalize` | 結論とフォローアップの確定 | ✅ | `caseId`, `rootCauses[]`, `fix`, `followUps?` | `conclusion` |
 
 すべてのツールは Zod スキーマで検証され、`structuredContent` (JSON) と整形済みテキストを返します。
@@ -44,11 +50,14 @@
 ケースデータは `data/cases.json` に JSON として保存されます。テスト環境などでは `MCP_RCA_CASES_PATH` 環境変数で保存先を上書きできます。
 各ケースは `status` (`active` / `archived`) を持ち、`case_update` ツールでアーカイブ切り替えが可能です。
 
-## 典型的なワークフロー
+### 典型的なワークフロー
 1. クライアントが `initialize` を送信すると、サーバはサポートバージョンをネゴシエートし capabilities を返す。
-2. `tools/list` で 4 種類のツールが紹介される。
+2. `tools/list` で 17 種類のツールが紹介される。
 3. 仮説生成 (`hypothesis_propose`) → テスト計画 (`test_plan`) → 優先順位付け (`test_prioritize`) → 結論整理 (`conclusion_finalize`) の順に利用できる。
-4. いつでも `resources/read` で補助ドキュメントを取得可能。
+4. 仮説やテストプランの更新・削除は `hypothesis_update`, `hypothesis_remove`, `test_plan_update`, `test_plan_remove` で可能。
+5. 確信度の高い仮説は `hypothesis_finalize` で本登録化。
+6. 不要な仮説・テストプランは `bulk_delete_provisional` で一括削除。
+7. いつでも `resources/read` で補助ドキュメントを取得可能。
 
 ### ケース管理機能の設計方針
 - **ツール数の抑制**: ケース CRUD は `case_create`, `case_get`, `case_list`, `case_update` の 4 本に集約し、削除は `case_update` の `status: "archived"` 指定でソフトデリートとする。

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { generateHypotheses } from "../llm/generator.js";
+import { addHypothesis } from "../data/caseStore.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
 
 const hypothesisTestPlanSchema = z.object({
@@ -41,6 +42,18 @@ export const hypothesisProposeTool: ToolDefinition<
   handler: async (input: HypothesisProposeInput, context: ToolContext) => {
     context.logger?.info("Generating hypotheses", { caseId: input.caseId });
     const hypotheses = await generateHypotheses(input);
+    
+    // Persist each hypothesis to the case
+    await Promise.all(
+      hypotheses.map((hypothesis) =>
+        addHypothesis({
+          caseId: input.caseId,
+          text: hypothesis.text,
+          rationale: hypothesis.rationale,
+        })
+      )
+    );
+    
     return { hypotheses };
   },
 };

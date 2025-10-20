@@ -2,10 +2,9 @@
 	"servers": {
 		"mcp-rca": {
 			"type": "stdio",
-			"command": "npm",
+			"command": "node",
 			"args": [
-				"run",
-				"start:mcp"
+				"dist/cli.js"
 			],
 			"dev": {
 				"watch": [
@@ -25,6 +24,10 @@
 				"NODE_EXTRA_CA_CERTS": "${userHome}/mcp-memo/certs/cloudflare-chain.pem",
 				"MEMORY_HTTP_TIMEOUT_MS": "15000"
 			}
+		},
+		"github-mcp": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/"
 		}
 	},
 	"inputs": [

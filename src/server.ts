@@ -23,11 +23,17 @@ import { caseListTool } from "./tools/case_list.js";
 import { caseUpdateTool } from "./tools/case_update.js";
 import { conclusionTool } from "./tools/conclusion.js";
 import { hypothesisProposeTool } from "./tools/hypothesis.js";
+import { hypothesisUpdateTool } from "./tools/hypothesis_update.js";
+import { hypothesisRemoveTool } from "./tools/hypothesis_remove.js";
+import { hypothesisFinalizeTool } from "./tools/hypothesis_finalize.js";
 import { observationAddTool } from "./tools/observation.js";
 import { observationRemoveTool } from "./tools/observation_remove.js";
 import { observationUpdateTool } from "./tools/observation_update.js";
 import { prioritizeTool } from "./tools/prioritize.js";
 import { testPlanTool } from "./tools/test_plan.js";
+import { testPlanUpdateTool } from "./tools/test_plan_update.js";
+import { testPlanRemoveTool } from "./tools/test_plan_remove.js";
+import { bulkDeleteProvisionalTool } from "./tools/bulk_delete_provisional.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
 export const SERVER_VERSION = "0.1.2";
@@ -43,8 +49,14 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   observationUpdateTool,
   observationRemoveTool,
   hypothesisProposeTool,
+  hypothesisUpdateTool,
+  hypothesisRemoveTool,
+  hypothesisFinalizeTool,
   testPlanTool,
+  testPlanUpdateTool,
+  testPlanRemoveTool,
   prioritizeTool,
+  bulkDeleteProvisionalTool,
   conclusionTool,
 ];
 

@@ -1,6 +1,6 @@
 {
   "name": "mcp-rca",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Root Cause Analysis MCP server scaffolding.",
   "license": "MIT",
   "type": "module",

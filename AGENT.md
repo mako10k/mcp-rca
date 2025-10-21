@@ -49,8 +49,9 @@ The server supports `resources/listChanged`. `resources/subscribe` registers int
 - Default location resolution for cases database (`cases.json`):
   1) If `MCP_RCA_CASES_PATH` is set, that absolute/relative path is used.
   2) Otherwise, if the repository-local `data/` directory exists, use `<repo>/data/cases.json` (dev-friendly default).
-  3) Otherwise, fall back to the user data directory following XDG base directory conventions:
-     - `"$XDG_DATA_HOME/mcp-rca/cases.json"` or, when undefined on Linux: `"~/.local/share/mcp-rca/cases.json"`.
+  3) Otherwise, fall back to the user data directory:
+    - Linux: `"$XDG_DATA_HOME/mcp-rca/cases.json"` or, when undefined: `"~/.local/share/mcp-rca/cases.json"`.
+    - Note: The current fallback primarily targets Linux/XDG. On macOS/Windows, set `MCP_RCA_CASES_PATH` explicitly to a desired absolute path.
 - Parent directories for the resolved path are created automatically on first write, avoiding `ENOENT` during atomic writes.
 - Recommended: set `MCP_RCA_CASES_PATH` to an absolute path in client configs to ensure multi-process consistency.
 - Each case has a `status` (`active` / `archived`). Toggle via the `case_update` tool.

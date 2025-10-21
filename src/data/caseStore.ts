@@ -1,8 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { JSONFilePreset } from "lowdb/node";
+import { homedir } from "node:os";
 import type { Case, CaseStatus, Observation, Severity } from "../schema/case.js";
 import type { Hypothesis, TestPlan } from "../schema/hypothesis.js";
 import { logger } from "../logger.js";
@@ -36,10 +37,21 @@ function getCasesFilePath(): string {
   }
   
   const projectRoot = getProjectRoot();
-  const defaultPath = resolve(projectRoot, "data", "cases.json");
-  
-  logger.info("Using default cases path", "caseStore", { path: defaultPath, projectRoot });
-  return defaultPath;
+  const projectDataDir = resolve(projectRoot, "data");
+
+  // Prefer repo-local data directory during development if it exists
+  if (existsSync(projectDataDir)) {
+    const devPath = resolve(projectDataDir, "cases.json");
+    logger.info("Using default cases path (project data dir)", "caseStore", { path: devPath, projectRoot });
+    return devPath;
+  }
+
+  // Fallback to user data directory (XDG base dir or ~/.local/share)
+  const xdgBase = process.env.XDG_DATA_HOME || resolve(homedir(), ".local", "share");
+  const appDataDir = resolve(xdgBase, "mcp-rca");
+  const userPath = resolve(appDataDir, "cases.json");
+  logger.info("Using default cases path (user data dir)", "caseStore", { path: userPath, xdgBase });
+  return userPath;
 }
 
 type DbSchema = { cases: Case[] };
@@ -49,6 +61,13 @@ let dbInstance: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>> | null = nu
 async function getDb() {
   if (!dbInstance) {
     const filePath = getCasesFilePath();
+    // Ensure parent directory exists to avoid ENOENT on atomic writes
+    const dir = dirname(filePath);
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      // Best-effort: lowdb will still attempt file creation and surface errors
+    }
     // JSONFilePreset guarantees data is initialized with the default value
     dbInstance = await JSONFilePreset<DbSchema>(filePath, { cases: [] });
   }

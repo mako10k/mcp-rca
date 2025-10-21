@@ -971,3 +971,45 @@ export async function bulkDeleteProvisional(
     case: updatedCase,
   };
 }
+
+export interface FinalizeConclusionInput {
+  caseId: string;
+  conclusion: {
+    id: string;
+    caseId: string;
+    rootCauses: string[];
+    fix: string;
+    followUps?: string[];
+    createdAt: string;
+    updatedAt: string;
+    confidenceMarker?: "🟢" | "🔵" | "🟡" | "🔴";
+  };
+}
+
+export interface FinalizeConclusionResult {
+  case: Case;
+}
+
+export async function finalizeConclusion(
+  input: FinalizeConclusionInput,
+): Promise<FinalizeConclusionResult> {
+  const cases = await loadCases();
+  const index = cases.findIndex((item) => item.id === input.caseId);
+
+  if (index === -1) {
+    throw new Error(`Case ${input.caseId} not found`);
+  }
+
+  const now = new Date().toISOString();
+  const updatedCase: Case = {
+    ...cases[index],
+    conclusion: input.conclusion,
+    status: "closed",
+    updatedAt: now,
+  };
+
+  cases[index] = updatedCase;
+  await saveCases(cases);
+
+  return { case: updatedCase };
+}

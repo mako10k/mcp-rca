@@ -10,7 +10,7 @@ export const caseSchema: z.ZodType<Case> = z.object({
   title: z.string(),
   severity: severitySchema,
   tags: z.array(z.string()),
-  status: z.enum(["active", "archived"]),
+  status: z.enum(["active", "archived", "closed"]),
   gitBranch: z.string().optional(),
   gitCommit: z.string().optional(),
   deployEnv: z.string().optional(),

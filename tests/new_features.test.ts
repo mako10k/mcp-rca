@@ -189,6 +189,82 @@ describe("new features", () => {
       if (oldPath === undefined) delete process.env.MCP_RCA_CASES_PATH; else process.env.MCP_RCA_CASES_PATH = oldPath;
     }
   });
+
+  it("conclusion_finalize updates case status to closed", async () => {
+    const oldPath = process.env.MCP_RCA_CASES_PATH;
+    const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-new-"));
+    const tempCasesPath = join(tempCasesDir, "cases.json");
+    process.env.MCP_RCA_CASES_PATH = tempCasesPath;
+
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const { server, transport } = await buildServer({ input, output });
+
+    try {
+      await mcpServerKit.connectToTransport(server, transport);
+      await connectAndInit(output, input);
+
+      // Create a case
+      const caseCreate = await issueRequest(output, input, {
+        id: 20,
+        method: "tools/call",
+        params: {
+          name: "case_create",
+          arguments: { title: "Incident to close", severity: "SEV2" },
+        },
+      });
+      const caseId = caseCreate.result.structuredContent.caseId as string;
+      const initialCase = caseCreate.result.structuredContent.case as any;
+      expect(initialCase.status).toBe("active");
+
+      // Finalize conclusion
+      const finalize = await issueRequest(output, input, {
+        id: 21,
+        method: "tools/call",
+        params: {
+          name: "conclusion_finalize",
+          arguments: {
+            caseId,
+            rootCauses: ["Config drift"],
+            fix: "Applied correct settings",
+            followUps: ["Update runbook"],
+          },
+        },
+      });
+
+      const conclusion = finalize.result.structuredContent.conclusion as any;
+      expect(conclusion.id).toMatch(/^conc_/);
+      expect(conclusion.caseId).toBe(caseId);
+      expect(conclusion.rootCauses).toEqual(["Config drift"]);
+      expect(conclusion.fix).toBe("Applied correct settings");
+      expect(conclusion.confidenceMarker).toBe("🟢");
+
+      // Verify case status is now closed
+      const getCase = await issueRequest(output, input, {
+        id: 22,
+        method: "tools/call",
+        params: {
+          name: "case_get",
+          arguments: { caseId },
+        },
+      });
+      
+      // Debug: log the response if result is missing
+      if (!getCase.result) {
+        console.error("case_get response:", JSON.stringify(getCase, null, 2));
+        throw new Error("case_get returned error or no result");
+      }
+      
+      const updatedCase = getCase.result.structuredContent.case as any;
+      expect(updatedCase.status).toBe("closed");
+      expect(updatedCase.conclusion).toBeDefined();
+      expect(updatedCase.conclusion.id).toBe(conclusion.id);
+    } finally {
+      await server.close();
+      await transport.close();
+      if (oldPath === undefined) delete process.env.MCP_RCA_CASES_PATH; else process.env.MCP_RCA_CASES_PATH = oldPath;
+    }
+  });
 });
 
 async function connectAndInit(output: PassThrough, input: PassThrough) {

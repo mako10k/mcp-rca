@@ -2,7 +2,7 @@ import { Hypothesis, TestPlan } from "./hypothesis.js";
 import { Conclusion, TestResult } from "./result.js";
 
 export type Severity = "SEV1" | "SEV2" | "SEV3";
-export type CaseStatus = "active" | "archived";
+export type CaseStatus = "active" | "archived" | "closed";
 
 export interface Observation {
   id: string;

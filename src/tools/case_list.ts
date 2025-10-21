@@ -3,7 +3,7 @@ import { listCases } from "../data/caseStore.js";
 import type { ToolContext, ToolDefinition } from "./types.js";
 
 const severityValues = ["SEV1", "SEV2", "SEV3"] as const;
-const statusValues = ["active", "archived"] as const;
+const statusValues = ["active", "archived", "closed"] as const;
 
 const caseSummarySchema = z.object({
   id: z.string(),

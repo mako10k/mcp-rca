@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Conclusion } from "../schema/result.js";
 import type { ToolDefinition } from "./types.js";
+import { finalizeConclusion } from "../data/caseStore.js";
 
 const conclusionInputSchema = z.object({
   caseId: z.string(),
@@ -32,19 +33,34 @@ export const conclusionTool: ToolDefinition<ConclusionInput, ConclusionOutput> =
   description: "Close the RCA case with the agreed root cause and follow-up actions.",
   inputSchema: conclusionInputSchema,
   outputSchema: conclusionOutputSchema,
-  handler: async (input: ConclusionInput) => {
+  handler: async (input: ConclusionInput, context) => {
     const timestamp = new Date().toISOString();
-    return {
-      conclusion: {
-        id: `conc_${Date.now()}`,
+    const conclusion: Conclusion = {
+      id: `conc_${Date.now()}`,
+      caseId: input.caseId,
+      rootCauses: input.rootCauses,
+      fix: input.fix,
+      followUps: input.followUps,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      confidenceMarker: "🟢",
+    };
+
+    const result = await finalizeConclusion({
+      caseId: input.caseId,
+      conclusion,
+    });
+
+    if (context.logger) {
+      context.logger.info("Finalized conclusion", {
         caseId: input.caseId,
-        rootCauses: input.rootCauses,
-        fix: input.fix,
-        followUps: input.followUps,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        confidenceMarker: "🟢",
-      },
+        conclusionId: conclusion.id,
+        status: result.case.status,
+      });
+    }
+
+    return {
+      conclusion,
     };
   },
 };

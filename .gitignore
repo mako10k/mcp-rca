@@ -4,3 +4,5 @@ dist
 *.log
 data/cases.sqlite
 data/cases.json
+.vscode/mcp.json
+.vscode/settings.json

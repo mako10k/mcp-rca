@@ -46,8 +46,31 @@ Last updated: 2025-10-21
 The server supports `resources/listChanged`. `resources/subscribe` registers interest (events may be expanded later).
 
 ### Data storage
-- Cases are persisted to `data/cases.json`. Override with the `MCP_RCA_CASES_PATH` environment variable for tests or custom deployments.
+- Cases are persisted to `data/cases.json` relative to the project root.
+- Override with the `MCP_RCA_CASES_PATH` environment variable for tests or custom deployments.
 - Each case has a `status` (`active` / `archived`). Toggle via the `case_update` tool.
+
+#### Multi-process considerations
+**Important:** If you run multiple MCP server instances (e.g., VS Code integration + CLI scripts) without setting `MCP_RCA_CASES_PATH`, each process may resolve `data/cases.json` differently based on its working directory. This can cause data inconsistency where cases created in one context are invisible to another.
+
+**Recommended setup:**
+1. Set `MCP_RCA_CASES_PATH` to an absolute path in your MCP client configuration (e.g., `.vscode/mcp.json`):
+   ```json
+   {
+     "mcpServers": {
+       "mcp-rca": {
+         "command": "node",
+         "args": ["/absolute/path/to/mcp-rca/dist/server.js"],
+         "env": {
+           "MCP_RCA_CASES_PATH": "/absolute/path/to/mcp-rca/data/cases.json"
+         }
+       }
+     }
+   }
+   ```
+2. Or ensure all processes share the same working directory when launching the server.
+
+The server logs the resolved cases path at startup (visible in stderr) to help diagnose path mismatches.
 
 #### Git/Deploy metadata
 - Case / Observation / TestPlan can carry the following optional fields:

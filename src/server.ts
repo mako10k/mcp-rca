@@ -62,6 +62,16 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
 let samplingManager: LLMProviderManager | undefined;
 
 export async function buildServer(streams?: TransportStreams) {
+  log({
+    level: "info",
+    component: "server",
+    message: "Building MCP RCA server",
+    meta: {
+      version: SERVER_VERSION,
+      casesPathEnv: process.env.MCP_RCA_CASES_PATH || "(default)",
+    },
+  });
+
   const server = createMcpServer({
     name: "mcp-rca",
     version: SERVER_VERSION,

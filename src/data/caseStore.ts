@@ -49,15 +49,8 @@ let dbInstance: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>> | null = nu
 async function getDb() {
   if (!dbInstance) {
     const filePath = getCasesFilePath();
+    // JSONFilePreset guarantees data is initialized with the default value
     dbInstance = await JSONFilePreset<DbSchema>(filePath, { cases: [] });
-    
-    // Ensure data structure is initialized
-    if (!dbInstance.data) {
-      dbInstance.data = { cases: [] };
-    }
-    if (!Array.isArray(dbInstance.data.cases)) {
-      dbInstance.data.cases = [];
-    }
   }
   return dbInstance;
 }
@@ -101,7 +94,9 @@ function normalizeCase(record: Partial<Case> & { id: string; title: string; seve
 
 async function loadCases(): Promise<Case[]> {
   const db = await getDb();
-  // Don't call db.read() here - use in-memory data that's kept in sync with disk
+  // Don't call db.read() here - lowdb keeps an in-memory cache that's automatically
+  // synced by db.write(), ensuring immediate consistency across operations within
+  // the same process. Calling db.read() would reload from disk and lose unsaved changes.
   const cases = db.data.cases || [];
   return cases.map((entry) => normalizeCase(entry as Partial<Case> & { id: string; title: string; severity: Severity }));
 }

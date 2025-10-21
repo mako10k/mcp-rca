@@ -9,6 +9,10 @@ export interface Observation {
   caseId: string;
   what: string;
   context?: string;
+  // Optional association metadata
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
   createdAt: string;
 }
 
@@ -27,6 +31,10 @@ export interface Case {
   severity: Severity;
   tags: string[];
   status: CaseStatus;
+  // Optional association metadata for the case context
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
   observations: Observation[];
   impacts: Impact[];
   hypotheses: Hypothesis[];

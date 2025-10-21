@@ -53,6 +53,9 @@ function normalizeCase(record: Partial<Case> & { id: string; title: string; seve
     severity: record.severity,
     tags: normalizeTags(record.tags),
     status: record.status ?? "active",
+    gitBranch: record.gitBranch,
+    gitCommit: record.gitCommit,
+    deployEnv: record.deployEnv,
     observations,
     impacts,
     hypotheses,
@@ -88,6 +91,9 @@ export interface CreateCaseInput {
   title: string;
   severity: Severity;
   tags: string[];
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
 }
 
 export interface CreateCaseResult {
@@ -104,6 +110,9 @@ export async function createCase(input: CreateCaseInput): Promise<CreateCaseResu
     severity: input.severity,
     tags: normalizeTags(input.tags),
     status: "active",
+    gitBranch: input.gitBranch,
+    gitCommit: input.gitCommit,
+    deployEnv: input.deployEnv,
     observations: [],
     impacts: [],
     hypotheses: [],
@@ -124,6 +133,9 @@ export interface AddObservationInput {
   caseId: string;
   what: string;
   context?: string;
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
 }
 
 export interface AddObservationResult {
@@ -149,6 +161,9 @@ export async function addObservation(
     caseId: input.caseId,
     what: input.what,
     context: normalizedContext && normalizedContext.length > 0 ? normalizedContext : undefined,
+    gitBranch: input.gitBranch,
+    gitCommit: input.gitCommit,
+    deployEnv: input.deployEnv,
     createdAt: now,
   };
 
@@ -262,6 +277,9 @@ export interface UpdateObservationInput {
   observationId: string;
   what?: string;
   context?: string | null;
+  gitBranch?: string | null;
+  gitCommit?: string | null;
+  deployEnv?: string | null;
 }
 
 export interface UpdateObservationResult {
@@ -298,6 +316,24 @@ export async function updateObservation(
           ? undefined
           : input.context.trim()
         : original.context,
+    gitBranch:
+      input.gitBranch !== undefined
+        ? input.gitBranch === null || input.gitBranch.trim().length === 0
+          ? undefined
+          : input.gitBranch.trim()
+        : original.gitBranch,
+    gitCommit:
+      input.gitCommit !== undefined
+        ? input.gitCommit === null || input.gitCommit.trim().length === 0
+          ? undefined
+          : input.gitCommit.trim()
+        : original.gitCommit,
+    deployEnv:
+      input.deployEnv !== undefined
+        ? input.deployEnv === null || input.deployEnv.trim().length === 0
+          ? undefined
+          : input.deployEnv.trim()
+        : original.deployEnv,
   };
 
   const now = new Date().toISOString();
@@ -468,6 +504,9 @@ export interface UpdateCaseInput {
   severity?: Severity;
   tags?: string[];
   status?: CaseStatus;
+  gitBranch?: string | null;
+  gitCommit?: string | null;
+  deployEnv?: string | null;
 }
 
 export interface UpdateCaseResult {
@@ -490,6 +529,9 @@ export async function updateCase(input: UpdateCaseInput): Promise<UpdateCaseResu
     severity: input.severity ?? current.severity,
     tags: input.tags ? normalizeTags(input.tags) : current.tags,
     status: input.status ?? current.status,
+    gitBranch: input.gitBranch !== undefined ? (input.gitBranch === null || input.gitBranch.trim().length === 0 ? undefined : input.gitBranch.trim()) : current.gitBranch,
+    gitCommit: input.gitCommit !== undefined ? (input.gitCommit === null || input.gitCommit.trim().length === 0 ? undefined : input.gitCommit.trim()) : current.gitCommit,
+    deployEnv: input.deployEnv !== undefined ? (input.deployEnv === null || input.deployEnv.trim().length === 0 ? undefined : input.deployEnv.trim()) : current.deployEnv,
     updatedAt: now,
   };
 
@@ -618,6 +660,9 @@ export interface UpdateTestPlanInput {
   expected?: string;
   metric?: string | null;
   priority?: number | null;
+  gitBranch?: string | null;
+  gitCommit?: string | null;
+  deployEnv?: string | null;
 }
 
 export interface UpdateTestPlanResult {
@@ -656,6 +701,24 @@ export async function updateTestPlan(
           : input.metric.trim()
         : original.metric,
     priority: input.priority !== undefined ? (input.priority === null ? undefined : input.priority) : original.priority,
+    gitBranch:
+      input.gitBranch !== undefined
+        ? input.gitBranch === null || input.gitBranch.trim().length === 0
+          ? undefined
+          : input.gitBranch.trim()
+        : original.gitBranch,
+    gitCommit:
+      input.gitCommit !== undefined
+        ? input.gitCommit === null || input.gitCommit.trim().length === 0
+          ? undefined
+          : input.gitCommit.trim()
+        : original.gitCommit,
+    deployEnv:
+      input.deployEnv !== undefined
+        ? input.deployEnv === null || input.deployEnv.trim().length === 0
+          ? undefined
+          : input.deployEnv.trim()
+        : original.deployEnv,
     updatedAt: new Date().toISOString(),
   };
 
@@ -756,6 +819,9 @@ export interface AddTestPlanInput {
   method: string;
   expected: string;
   metric?: string;
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
 }
 
 export interface AddTestPlanResult {
@@ -789,6 +855,9 @@ export async function addTestPlan(
     method: input.method,
     expected: input.expected,
     metric: normalizedMetric && normalizedMetric.length > 0 ? normalizedMetric : undefined,
+    gitBranch: input.gitBranch,
+    gitCommit: input.gitCommit,
+    deployEnv: input.deployEnv,
     createdAt: now,
     updatedAt: now,
   };

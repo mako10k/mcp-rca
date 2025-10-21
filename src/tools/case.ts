@@ -11,6 +11,9 @@ export const caseSchema: z.ZodType<Case> = z.object({
   severity: severitySchema,
   tags: z.array(z.string()),
   status: z.enum(["active", "archived"]),
+  gitBranch: z.string().optional(),
+  gitCommit: z.string().optional(),
+  deployEnv: z.string().optional(),
   observations: z.array(z.any()),
   impacts: z.array(z.any()),
   hypotheses: z.array(z.any()),
@@ -25,6 +28,9 @@ const caseCreateInputSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   severity: severitySchema,
   tags: z.array(z.string().trim().min(1)).optional(),
+  gitBranch: z.string().trim().optional(),
+  gitCommit: z.string().trim().optional(),
+  deployEnv: z.string().trim().optional(),
 });
 
 const caseCreateOutputSchema = z.object({
@@ -53,6 +59,9 @@ export const caseCreateTool: ToolDefinition<CaseCreateInput, CaseCreateOutput> =
       title: input.title,
       severity: input.severity,
       tags,
+      gitBranch: input.gitBranch?.trim() || undefined,
+      gitCommit: input.gitCommit?.trim() || undefined,
+      deployEnv: input.deployEnv?.trim() || undefined,
     });
 
     context.logger?.info("Created RCA case", { caseId: result.case.id, title: input.title });

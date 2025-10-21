@@ -9,6 +9,9 @@ const observationSchema: z.ZodType<Observation> = z.object({
   caseId: z.string(),
   what: z.string(),
   context: z.string().optional(),
+  gitBranch: z.string().optional(),
+  gitCommit: z.string().optional(),
+  deployEnv: z.string().optional(),
   createdAt: z.string(),
 });
 
@@ -16,6 +19,9 @@ const observationAddInputSchema = z.object({
   caseId: z.string().min(1, "Case identifier is required"),
   what: z.string().trim().min(1, "Observation text is required"),
   context: z.string().trim().optional(),
+  gitBranch: z.string().trim().optional(),
+  gitCommit: z.string().trim().optional(),
+  deployEnv: z.string().trim().optional(),
 });
 
 const observationAddOutputSchema = z.object({
@@ -38,6 +44,9 @@ export const observationAddTool: ToolDefinition<ObservationAddInput, Observation
       caseId: input.caseId,
       what: input.what.trim(),
       context: cleanedContext && cleanedContext.length > 0 ? cleanedContext : undefined,
+      gitBranch: input.gitBranch?.trim() || undefined,
+      gitCommit: input.gitCommit?.trim() || undefined,
+      deployEnv: input.deployEnv?.trim() || undefined,
     });
 
     context.logger?.info("Added observation", {

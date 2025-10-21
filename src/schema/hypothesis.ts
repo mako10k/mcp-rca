@@ -16,6 +16,10 @@ export interface TestPlan {
   expected: string;
   metric?: string;
   priority?: number;
+  // Optional association metadata
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
   createdAt: string;
   updatedAt: string;
 }

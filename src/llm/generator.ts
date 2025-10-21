@@ -121,7 +121,7 @@ export async function generateHypotheses(
     }
   }
 
-  // 必ずLLMProviderManager経由で仮説生成を行う（SamplingProviderがfallback）
+  // Always generate hypotheses via LLMProviderManager (SamplingProvider as fallback)
   if (llmManager) {
     try {
       const userPrompt = JSON.stringify(
@@ -166,13 +166,13 @@ export async function generateHypotheses(
           },
         ];
       }
-      // 返却値が不正な場合はエラー
+  // Invalid response shape: throw an error
       throw new Error('LLM response could not be parsed as hypotheses');
     } catch (error) {
       throw new Error('LLM hypothesis generation failed: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
-  // llmManagerが初期化できない場合はエラー
+  // Failed to initialize llmManager: throw an error
   throw new Error('LLMProviderManager could not be initialized');
 }
 

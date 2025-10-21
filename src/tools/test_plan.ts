@@ -8,6 +8,9 @@ const testPlanInputSchema = z.object({
   method: z.string(),
   expected: z.string(),
   metric: z.string().optional(),
+  gitBranch: z.string().trim().optional(),
+  gitCommit: z.string().trim().optional(),
+  deployEnv: z.string().trim().optional(),
 });
 
 const testPlanOutputSchema = z.object({
@@ -27,7 +30,16 @@ export const testPlanTool: ToolDefinition<TestPlanInput, TestPlanOutput> = {
   outputSchema: testPlanOutputSchema,
   handler: async (input: TestPlanInput, context: ToolContext) => {
     context.logger?.info("Creating test plan", { caseId: input.caseId, hypothesisId: input.hypothesisId });
-    const result = await addTestPlan(input);
+    const result = await addTestPlan({
+      caseId: input.caseId,
+      hypothesisId: input.hypothesisId,
+      method: input.method,
+      expected: input.expected,
+      metric: input.metric,
+      gitBranch: input.gitBranch?.trim() || undefined,
+      gitCommit: input.gitCommit?.trim() || undefined,
+      deployEnv: input.deployEnv?.trim() || undefined,
+    });
     return {
       testPlanId: result.testPlan.id,
       status: "draft",

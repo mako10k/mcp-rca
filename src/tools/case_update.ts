@@ -11,6 +11,9 @@ const caseUpdateInputSchema = z.object({
   severity: severitySchema.optional(),
   tags: z.array(z.string().trim().min(1)).optional(),
   status: statusEnum.optional(),
+  gitBranch: z.string().trim().nullable().optional(),
+  gitCommit: z.string().trim().nullable().optional(),
+  deployEnv: z.string().trim().nullable().optional(),
 });
 
 const caseUpdateOutputSchema = z.object({
@@ -26,7 +29,15 @@ export const caseUpdateTool: ToolDefinition<CaseUpdateInput, CaseUpdateOutput> =
   inputSchema: caseUpdateInputSchema,
   outputSchema: caseUpdateOutputSchema,
   handler: async (input: CaseUpdateInput, context: ToolContext) => {
-    if (!input.title && !input.severity && !input.tags && !input.status) {
+    if (
+      !input.title &&
+      !input.severity &&
+      !input.tags &&
+      !input.status &&
+      input.gitBranch === undefined &&
+      input.gitCommit === undefined &&
+      input.deployEnv === undefined
+    ) {
       throw new Error("At least one updatable field must be provided");
     }
 
@@ -36,6 +47,9 @@ export const caseUpdateTool: ToolDefinition<CaseUpdateInput, CaseUpdateOutput> =
       severity: input.severity,
       tags: input.tags,
       status: input.status,
+      gitBranch: input.gitBranch,
+      gitCommit: input.gitCommit,
+      deployEnv: input.deployEnv,
     });
 
     context.logger?.info("Updated case", {
@@ -45,6 +59,9 @@ export const caseUpdateTool: ToolDefinition<CaseUpdateInput, CaseUpdateOutput> =
         severity: Boolean(input.severity),
         tags: Boolean(input.tags),
         status: Boolean(input.status),
+        gitBranch: input.gitBranch !== undefined,
+        gitCommit: input.gitCommit !== undefined,
+        deployEnv: input.deployEnv !== undefined,
       },
     });
 

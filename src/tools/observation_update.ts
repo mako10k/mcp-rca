@@ -8,6 +8,9 @@ const observationSchema = z.object({
   caseId: z.string(),
   what: z.string(),
   context: z.string().optional(),
+  gitBranch: z.string().optional(),
+  gitCommit: z.string().optional(),
+  deployEnv: z.string().optional(),
   createdAt: z.string(),
 });
 
@@ -16,6 +19,9 @@ const observationUpdateInputSchema = z.object({
   observationId: z.string().min(1, "Observation identifier is required"),
   what: z.string().trim().optional(),
   context: z.string().trim().optional(),
+  gitBranch: z.string().trim().nullable().optional(),
+  gitCommit: z.string().trim().nullable().optional(),
+  deployEnv: z.string().trim().nullable().optional(),
 });
 
 const observationUpdateOutputSchema = z.object({
@@ -36,7 +42,13 @@ export const observationUpdateTool: ToolDefinition<
   inputSchema: observationUpdateInputSchema,
   outputSchema: observationUpdateOutputSchema,
   handler: async (input: ObservationUpdateInput, context: ToolContext) => {
-    if (input.what === undefined && input.context === undefined) {
+    if (
+      input.what === undefined &&
+      input.context === undefined &&
+      input.gitBranch === undefined &&
+      input.gitCommit === undefined &&
+      input.deployEnv === undefined
+    ) {
       throw new Error("Provide at least one field to update");
     }
     const result = await updateObservation({
@@ -44,6 +56,9 @@ export const observationUpdateTool: ToolDefinition<
       observationId: input.observationId,
       what: input.what,
       context: input.context,
+      gitBranch: input.gitBranch,
+      gitCommit: input.gitCommit,
+      deployEnv: input.deployEnv,
     });
 
     context.logger?.info("Updated observation", {
@@ -52,6 +67,9 @@ export const observationUpdateTool: ToolDefinition<
       fields: {
         what: input.what !== undefined,
         context: input.context !== undefined,
+        gitBranch: input.gitBranch !== undefined,
+        gitCommit: input.gitCommit !== undefined,
+        deployEnv: input.deployEnv !== undefined,
       },
     });
 

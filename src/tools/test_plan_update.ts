@@ -9,6 +9,9 @@ const testPlanUpdateInputSchema = z.object({
   expected: z.string().min(1, "Expected outcome is required").optional(),
   metric: z.string().nullable().optional(),
   priority: z.number().int().min(1).max(10).nullable().optional(),
+  gitBranch: z.string().trim().nullable().optional(),
+  gitCommit: z.string().trim().nullable().optional(),
+  deployEnv: z.string().trim().nullable().optional(),
 });
 
 const testPlanUpdateOutputSchema = z.object({
@@ -20,6 +23,9 @@ const testPlanUpdateOutputSchema = z.object({
     expected: z.string(),
     metric: z.string().optional(),
     priority: z.number().int().min(1).max(10).optional(),
+    gitBranch: z.string().optional(),
+    gitCommit: z.string().optional(),
+    deployEnv: z.string().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
   }),
@@ -53,7 +59,17 @@ export const testPlanUpdateTool: ToolDefinition<
   outputSchema: testPlanUpdateOutputSchema,
   handler: async (input: TestPlanUpdateInput, context: ToolContext) => {
     context.logger?.info("Updating test plan", { caseId: input.caseId, testPlanId: input.testPlanId });
-    const result = await updateTestPlan(input);
+    const result = await updateTestPlan({
+      caseId: input.caseId,
+      testPlanId: input.testPlanId,
+      method: input.method,
+      expected: input.expected,
+      metric: input.metric,
+      priority: input.priority,
+      gitBranch: input.gitBranch,
+      gitCommit: input.gitCommit,
+      deployEnv: input.deployEnv,
+    });
     return result;
   },
 };

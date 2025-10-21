@@ -50,6 +50,14 @@ async function getDb() {
   if (!dbInstance) {
     const filePath = getCasesFilePath();
     dbInstance = await JSONFilePreset<DbSchema>(filePath, { cases: [] });
+    
+    // Ensure data structure is initialized
+    if (!dbInstance.data) {
+      dbInstance.data = { cases: [] };
+    }
+    if (!Array.isArray(dbInstance.data.cases)) {
+      dbInstance.data.cases = [];
+    }
   }
   return dbInstance;
 }
@@ -94,7 +102,8 @@ function normalizeCase(record: Partial<Case> & { id: string; title: string; seve
 async function loadCases(): Promise<Case[]> {
   const db = await getDb();
   await db.read();
-  return db.data.cases.map((entry) => normalizeCase(entry as Partial<Case> & { id: string; title: string; severity: Severity }));
+  const cases = db.data.cases || [];
+  return cases.map((entry) => normalizeCase(entry as Partial<Case> & { id: string; title: string; severity: Severity }));
 }
 
 async function saveCases(cases: Case[]): Promise<void> {

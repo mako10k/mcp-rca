@@ -1,7 +1,19 @@
 import { z } from "zod";
 import { generateHypotheses } from "../llm/generator.js";
 import { addHypothesis } from "../data/caseStore.js";
+import type { Hypothesis } from "../schema/hypothesis.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
+
+/**
+ * Minimal test plan information included in hypothesis responses.
+ */
+type MinimalTestPlan = {
+  id: string;
+  hypothesisId: string;
+  method: string;
+  expected: string;
+  metric?: string;
+};
 
 const hypothesisTestPlanSchema = z.object({
   method: z.string(),
@@ -19,7 +31,13 @@ const hypothesisSchema = z.object({
   updatedAt: z.string(),
   // If we created an initial test plan, surface minimal info
   testPlan: z
-    .object({ id: z.string(), hypothesisId: z.string(), method: z.string(), expected: z.string(), metric: z.string().optional() })
+    .object({
+      id: z.string(),
+      hypothesisId: z.string(),
+      method: z.string(),
+      expected: z.string(),
+      metric: z.string().optional(),
+    })
     .optional(),
 });
 
@@ -51,36 +69,38 @@ export const hypothesisProposeTool: ToolDefinition<
     context.logger?.info("Generating hypotheses", { caseId: input.caseId });
     const generated = await generateHypotheses(input);
 
-    // Persist each hypothesis; also create a draft test plan if provided by generator
-    const persisted = await Promise.all(
-      generated.map(async (hyp) => {
-        const { hypothesis } = await addHypothesis({
+    // Persist each hypothesis sequentially to avoid race conditions with file I/O
+    const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
+    
+    for (const hyp of generated) {
+      const { hypothesis } = await addHypothesis({
+        caseId: input.caseId,
+        text: hyp.text,
+        rationale: hyp.rationale,
+      });
+      
+      let plan: MinimalTestPlan | undefined;
+      if (hyp.testPlan?.method && hyp.testPlan?.expected) {
+        // lazily import to avoid cycle
+        const { addTestPlan } = await import("../data/caseStore.js");
+        const result = await addTestPlan({
           caseId: input.caseId,
-          text: hyp.text,
-          rationale: hyp.rationale,
+          hypothesisId: hypothesis.id,
+          method: hyp.testPlan.method,
+          expected: hyp.testPlan.expected,
+          metric: hyp.testPlan.metric,
         });
-        let plan: { id: string; hypothesisId: string; method: string; expected: string; metric?: string } | undefined;
-        if (hyp.testPlan?.method && hyp.testPlan?.expected) {
-          // lazily import to avoid cycle
-          const { addTestPlan } = await import("../data/caseStore.js");
-          const result = await addTestPlan({
-            caseId: input.caseId,
-            hypothesisId: hypothesis.id,
-            method: hyp.testPlan.method,
-            expected: hyp.testPlan.expected,
-            metric: hyp.testPlan.metric,
-          });
-          plan = {
-            id: result.testPlan.id,
-            hypothesisId: hypothesis.id,
-            method: result.testPlan.method,
-            expected: result.testPlan.expected,
-            metric: result.testPlan.metric,
-          };
-        }
-        return { ...hypothesis, testPlan: plan };
-      })
-    );
+        plan = {
+          id: result.testPlan.id,
+          hypothesisId: hypothesis.id,
+          method: result.testPlan.method,
+          expected: result.testPlan.expected,
+          metric: result.testPlan.metric,
+        };
+      }
+      
+      persisted.push({ ...hypothesis, testPlan: plan });
+    }
 
     return { hypotheses: persisted };
   },

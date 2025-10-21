@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -8,12 +9,37 @@ import { logger } from "../logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+function getProjectRoot(): string {
+  // Assume dist/data/caseStore.js → resolve to project root (../../)
+  // Or if running from src directly (tsx/dev), go up one level
+  const fromDist = resolve(__dirname, "../..");
+  const fromSrc = resolve(__dirname, "..");
+  
+  // Heuristic: check if package.json exists at the candidate root
+  if (existsSync(resolve(fromDist, "package.json"))) {
+    return fromDist;
+  }
+  if (existsSync(resolve(fromSrc, "package.json"))) {
+    return fromSrc;
+  }
+  
+  // Default to fromDist for built bundle
+  return fromDist;
+}
+
 function getCasesFilePath(): string {
   const override = process.env.MCP_RCA_CASES_PATH;
   if (override && override.trim().length > 0) {
+    logger.info("Using custom cases path from MCP_RCA_CASES_PATH", "caseStore", { path: override });
     return override;
   }
-  return resolve(__dirname, "../../data/cases.json");
+  
+  const projectRoot = getProjectRoot();
+  const defaultPath = resolve(projectRoot, "data", "cases.json");
+  
+  logger.info("Using default cases path", "caseStore", { path: defaultPath, projectRoot });
+  return defaultPath;
 }
 
 async function ensureCasesFile(): Promise<void> {

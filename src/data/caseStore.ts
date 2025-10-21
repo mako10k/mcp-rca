@@ -1,8 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { JSONFilePreset } from "lowdb/node";
 import type { Case, CaseStatus, Observation, Severity } from "../schema/case.js";
 import type { Hypothesis, TestPlan } from "../schema/hypothesis.js";
 import { logger } from "../logger.js";
@@ -42,18 +42,16 @@ function getCasesFilePath(): string {
   return defaultPath;
 }
 
-async function ensureCasesFile(): Promise<void> {
-  const filePath = getCasesFilePath();
-  await mkdir(dirname(filePath), { recursive: true });
-  try {
-    await readFile(filePath, "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      await writeFile(filePath, "[]", "utf8");
-    } else {
-      throw error;
-    }
+type DbSchema = { cases: Case[] };
+
+let dbInstance: Awaited<ReturnType<typeof JSONFilePreset<DbSchema>>> | null = null;
+
+async function getDb() {
+  if (!dbInstance) {
+    const filePath = getCasesFilePath();
+    dbInstance = await JSONFilePreset<DbSchema>(filePath, { cases: [] });
   }
+  return dbInstance;
 }
 
 function normalizeTags(tags: string[] | undefined): string[] {
@@ -94,23 +92,15 @@ function normalizeCase(record: Partial<Case> & { id: string; title: string; seve
 }
 
 async function loadCases(): Promise<Case[]> {
-  await ensureCasesFile();
-  const raw = await readFile(getCasesFilePath(), "utf8");
-  try {
-    const data = JSON.parse(raw) as Array<Partial<Case> & { id: string; title: string; severity: Severity }>;
-    if (Array.isArray(data)) {
-      return data.map((entry) => normalizeCase(entry));
-    }
-  } catch (error) {
-    logger.error("Failed to parse cases.json; resetting store", "caseStore", { error });
-  }
-  await writeFile(getCasesFilePath(), "[]", "utf8");
-  return [];
+  const db = await getDb();
+  await db.read();
+  return db.data.cases.map((entry) => normalizeCase(entry as Partial<Case> & { id: string; title: string; severity: Severity }));
 }
 
 async function saveCases(cases: Case[]): Promise<void> {
-  const serialized = JSON.stringify(cases, null, 2);
-  await writeFile(getCasesFilePath(), `${serialized}\n`, "utf8");
+  const db = await getDb();
+  db.data.cases = cases;
+  await db.write();
 }
 
 export interface CreateCaseInput {

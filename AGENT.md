@@ -46,8 +46,14 @@ Last updated: 2025-10-21
 The server supports `resources/listChanged`. `resources/subscribe` registers interest (events may be expanded later).
 
 ### Data storage
-- Cases are persisted to `data/cases.json` relative to the project root.
-- Override with the `MCP_RCA_CASES_PATH` environment variable for tests or custom deployments.
+- Default location resolution for cases database (`cases.json`):
+  1) If `MCP_RCA_CASES_PATH` is set, that absolute/relative path is used.
+  2) Otherwise, if the repository-local `data/` directory exists, use `<repo>/data/cases.json` (dev-friendly default).
+  3) Otherwise, fall back to the user data directory:
+    - Linux: `"$XDG_DATA_HOME/mcp-rca/cases.json"` or, when undefined: `"~/.local/share/mcp-rca/cases.json"`.
+    - Note: The current fallback primarily targets Linux/XDG. On macOS/Windows, set `MCP_RCA_CASES_PATH` explicitly to a desired absolute path.
+- Parent directories for the resolved path are created automatically on first write, avoiding `ENOENT` during atomic writes.
+- Recommended: set `MCP_RCA_CASES_PATH` to an absolute path in client configs to ensure multi-process consistency.
 - Each case has a `status` (`active` / `archived`). Toggle via the `case_update` tool.
 
 #### Multi-process considerations

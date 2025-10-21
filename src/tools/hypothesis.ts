@@ -37,7 +37,7 @@ const hypothesisSchema = z.object({
       method: z.string(),
       expected: z.string(),
       metric: z.string().optional(),
-    } satisfies z.ZodType<MinimalTestPlan, any, any>["_input"])
+    })
     .optional(),
 });
 

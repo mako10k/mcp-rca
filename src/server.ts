@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,7 +36,10 @@ import { testPlanRemoveTool } from "./tools/test_plan_remove.js";
 import { bulkDeleteProvisionalTool } from "./tools/bulk_delete_provisional.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
-export const SERVER_VERSION = "0.2.1";
+// Keep server version in sync with package.json
+const require = createRequire(import.meta.url);
+const { version: pkgVersion } = require("../package.json") as { version: string };
+export const SERVER_VERSION = pkgVersion;
 
 type CreateMessageRequest = z.infer<typeof CreateMessageRequestSchema>;
 

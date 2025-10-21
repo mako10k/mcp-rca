@@ -115,6 +115,10 @@ The following tools accept optional metadata fields; on update, `null` clears th
 
 Example update payload that clears `gitCommit` on an observation:
 
+## License
+
+This project is released under the MIT License. See the `LICENSE` file for details.
+
 ```json
 {
   "caseId": "case_...",

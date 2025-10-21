@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -16,16 +17,11 @@ function getProjectRoot(): string {
   const fromSrc = resolve(__dirname, "..");
   
   // Heuristic: check if package.json exists at the candidate root
-  try {
-    const { existsSync } = require("node:fs");
-    if (existsSync(resolve(fromDist, "package.json"))) {
-      return fromDist;
-    }
-    if (existsSync(resolve(fromSrc, "package.json"))) {
-      return fromSrc;
-    }
-  } catch {
-    // Fall through
+  if (existsSync(resolve(fromDist, "package.json"))) {
+    return fromDist;
+  }
+  if (existsSync(resolve(fromSrc, "package.json"))) {
+    return fromSrc;
   }
   
   // Default to fromDist for built bundle

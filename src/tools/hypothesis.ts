@@ -4,6 +4,17 @@ import { addHypothesis } from "../data/caseStore.js";
 import type { Hypothesis } from "../schema/hypothesis.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
 
+/**
+ * Minimal test plan information included in hypothesis responses.
+ */
+type MinimalTestPlan = {
+  id: string;
+  hypothesisId: string;
+  method: string;
+  expected: string;
+  metric?: string;
+};
+
 const hypothesisTestPlanSchema = z.object({
   method: z.string(),
   expected: z.string(),
@@ -20,7 +31,13 @@ const hypothesisSchema = z.object({
   updatedAt: z.string(),
   // If we created an initial test plan, surface minimal info
   testPlan: z
-    .object({ id: z.string(), hypothesisId: z.string(), method: z.string(), expected: z.string(), metric: z.string().optional() })
+    .object({
+      id: z.string(),
+      hypothesisId: z.string(),
+      method: z.string(),
+      expected: z.string(),
+      metric: z.string().optional(),
+    } satisfies z.ZodType<MinimalTestPlan, any, any>["_input"])
     .optional(),
 });
 
@@ -53,7 +70,7 @@ export const hypothesisProposeTool: ToolDefinition<
     const generated = await generateHypotheses(input);
 
     // Persist each hypothesis sequentially to avoid race conditions with file I/O
-    const persisted: Array<Hypothesis & { testPlan?: { id: string; hypothesisId: string; method: string; expected: string; metric?: string } }> = [];
+    const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
     
     for (const hyp of generated) {
       const { hypothesis } = await addHypothesis({
@@ -62,7 +79,7 @@ export const hypothesisProposeTool: ToolDefinition<
         rationale: hyp.rationale,
       });
       
-      let plan: { id: string; hypothesisId: string; method: string; expected: string; metric?: string } | undefined;
+      let plan: MinimalTestPlan | undefined;
       if (hyp.testPlan?.method && hyp.testPlan?.expected) {
         // lazily import to avoid cycle
         const { addTestPlan } = await import("../data/caseStore.js");

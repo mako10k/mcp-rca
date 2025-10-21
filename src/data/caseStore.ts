@@ -101,7 +101,7 @@ function normalizeCase(record: Partial<Case> & { id: string; title: string; seve
 
 async function loadCases(): Promise<Case[]> {
   const db = await getDb();
-  await db.read();
+  // Don't call db.read() here - use in-memory data that's kept in sync with disk
   const cases = db.data.cases || [];
   return cases.map((entry) => normalizeCase(entry as Partial<Case> & { id: string; title: string; severity: Severity }));
 }

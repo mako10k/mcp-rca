@@ -4,10 +4,22 @@ Root Cause Analysis MCP server that helps SRE teams structure observations, hypo
 
 ## Highlights
 
-- Hypothesis generation returns persisted objects with IDs
+- **Prompt-based guidance**: MCP prompts guide the LLM through each RCA phase
+  - `rca_start_investigation` - Begin investigation with structured initial steps
+  - `rca_next_step` - Get context-aware recommendations based on case state
+  - `rca_hypothesis_propose` - Generate testable root cause hypotheses
+  - `rca_verification_planning` - Create effective test plans
+  - `rca_conclusion_guide` - Document conclusions with root causes and follow-ups
+- **LLM-oriented tools**: Guidance tools provide best practices and phase-specific checklists
+  - `guidance_best_practices` - RCA principles and anti-patterns
+  - `guidance_phase` - Phase-specific steps and red flags
+  - `guidance_prompt_scaffold` - Structured output formats for tasks
+  - `guidance_followups` - Post-conclusion follow-up actions
+  - `guidance_prompts_catalog` - Discover available prompts
+- **Hypothesis generation** returns persisted objects with IDs
   - `hypothesis_propose` persists generated hypotheses and returns each item with `id`, `caseId`, `createdAt`, and `updatedAt`.
   - When the generator supplies a verification plan in its output, an initial `test_plan` is created automatically and minimal info is attached to the hypothesis (method/expected/metric?).
-- Git/deploy metadata on Case / Observation / TestPlan
+- **Git/deploy metadata** on Case / Observation / TestPlan
   - Optional fields: `gitBranch`, `gitCommit`, `deployEnv`.
   - Set on create and update tools; passing `null` on update clears the field.
 
@@ -58,6 +70,51 @@ scripts/
 ```
 
 Refer to `AGENT.md` for the full specification, roadmap, and design guidelines.
+
+## Quick Start: Using Prompts
+
+MCP prompts guide your investigation through each phase:
+
+### 1. Start Investigation
+```
+Use prompt: rca_start_investigation
+→ Creates a structured plan for case creation and initial observations
+```
+
+### 2. Track Progress
+```
+Use prompt: rca_next_step with caseId
+→ Analyzes current state and suggests next actions
+```
+
+### 3. Generate Hypotheses
+```
+Use prompt: rca_hypothesis_propose with caseId
+→ Guides hypothesis generation with best practices
+→ Then call tool: hypothesis_propose to create and persist hypotheses
+```
+
+### 4. Plan Verification
+```
+Use prompt: rca_verification_planning with caseId, hypothesisId, hypothesisText
+→ Provides test plan templates and prioritization guidance
+→ Then call tool: test_plan to create verification plans
+```
+
+### 5. Document Conclusion
+```
+Use prompt: rca_conclusion_guide with caseId
+→ Guides documentation of root causes, fixes, and follow-ups
+→ Then call tool: conclusion_finalize to close the case
+```
+
+### LLM Guidance Tools
+
+Call guidance tools at any time for additional support:
+- `guidance_best_practices` - Core RCA principles
+- `guidance_phase` - Phase-specific checklists (observation/hypothesis/testing/conclusion)
+- `guidance_prompt_scaffold` - Output format templates for specific tasks
+- `guidance_followups` - Prevention and follow-up suggestions
 
 ## MCP Tool Highlights
 

@@ -22,6 +22,8 @@ Last updated: 2025-10-21
 | `rca_start_investigation` | Guide for starting a new RCA case and collecting initial observations | `incidentSummary?` (optional summary) |
 | `rca_next_step` | Suggest next actions based on current case state | `caseId` (required), `currentPhase?` (optional phase hint) |
 | `rca_hypothesis_propose` | Guide for generating effective root cause hypotheses | `caseId` (required), `observationSummary?` (optional summary) |
+| `rca_verification_planning` | Guide for creating test plans to verify hypotheses | `caseId` (required), `hypothesisId` (required), `hypothesisText` (required) |
+| `rca_conclusion_guide` | Guide for documenting conclusions with root causes and follow-ups | `caseId` (required) |
 
 **Usage**: Prompts return structured messages that the LLM can use to guide the investigation. They analyze the current case state and provide contextual recommendations.
 

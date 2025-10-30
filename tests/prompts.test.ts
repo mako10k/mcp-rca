@@ -81,6 +81,8 @@ describe("prompts", () => {
     expect(promptNames).toContain("rca_start_investigation");
     expect(promptNames).toContain("rca_next_step");
     expect(promptNames).toContain("rca_hypothesis_propose");
+    expect(promptNames).toContain("rca_verification_planning");
+    expect(promptNames).toContain("rca_conclusion_guide");
   });
 
   it("rca_start_investigation returns a message", async () => {
@@ -283,5 +285,84 @@ describe("prompts", () => {
     expect(text).toContain("CPU usage spiked to 95%");
     expect(text).toContain("Memory usage increased");
     expect(text).toContain("hypothesis_propose");
+  });
+
+  it("rca_verification_planning provides test plan guidance", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+
+    const { server, transport } = await buildServer({ input, output });
+    await mcpServerKit.connectToTransport(server, transport);
+
+    await issueRequest(output, input, {
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        clientInfo: { name: "TestClient", version: "0.0.1" },
+        capabilities: {},
+      },
+    });
+
+    sendMessage(input, { jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+
+    const result = (await issueRequest(output, input, {
+      id: 2,
+      method: "prompts/get",
+      params: {
+        name: "rca_verification_planning",
+        arguments: {
+          caseId: "case_123",
+          hypothesisId: "hyp_456",
+          hypothesisText: "Database connection pool exhausted",
+        },
+      },
+    })) as unknown as { result: { messages: Array<{ content: { text: string } }> } };
+
+    expect(result.result.messages).toBeDefined();
+    const text = result.result.messages[0].content.text;
+    expect(text).toContain("Test Plan Creation");
+    expect(text).toContain("Database connection pool exhausted");
+    expect(text).toContain("test_plan");
+    expect(text).toContain("RICE");
+  });
+
+  it("rca_conclusion_guide provides conclusion documentation guidance", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+
+    const { server, transport } = await buildServer({ input, output });
+    await mcpServerKit.connectToTransport(server, transport);
+
+    await issueRequest(output, input, {
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        clientInfo: { name: "TestClient", version: "0.0.1" },
+        capabilities: {},
+      },
+    });
+
+    sendMessage(input, { jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+
+    const result = (await issueRequest(output, input, {
+      id: 2,
+      method: "prompts/get",
+      params: {
+        name: "rca_conclusion_guide",
+        arguments: {
+          caseId: "case_123",
+        },
+      },
+    })) as unknown as { result: { messages: Array<{ content: { text: string } }> } };
+
+    expect(result.result.messages).toBeDefined();
+    const text = result.result.messages[0].content.text;
+    expect(text).toContain("RCA Conclusion Summary");
+    expect(text).toContain("Root Causes");
+    expect(text).toContain("Implemented Fix");
+    expect(text).toContain("Follow-up Actions");
+    expect(text).toContain("conclusion_finalize");
   });
 });

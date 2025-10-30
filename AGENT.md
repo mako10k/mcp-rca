@@ -36,6 +36,15 @@ Last updated: 2025-10-21
 | `bulk_delete_provisional` | Bulk delete provisional items (by confidence/priority thresholds) | ✅ | `caseId`, `confidenceThreshold?`, `priorityThreshold?` | — | `deletedHypotheses[]`, `deletedTestPlans[]`, `case` |
 | `conclusion_finalize` | Finalize conclusion and follow-ups | ✅ | `caseId`, `rootCauses[]`, `fix`, `followUps?` | — | `conclusion` |
 
+#### Guidance tools (LLM-facing)
+| Name | Role | Status | Key inputs | Metadata args (optional) | Key outputs |
+|------|------|--------|------------|--------------------------|-------------|
+| `guidance_best_practices` | Short RCA principles and anti-patterns for LLM | ✅ | `locale?` | — | `systemPreamble`, `heuristics[]`, `antiPatterns[]`, `citations?[]` |
+| `guidance_phase` | Phase-specific steps/checklists/pitfalls | ✅ | `phase` (`observation`/`hypothesis`/`testing`/`conclusion`), `level?` | — | `steps[]`, `checklists[]`, `redFlags[]`, `toolHints[]` |
+| `guidance_prompt_scaffold` | Role/format/constraints scaffolding for tasks | ✅ | `task` (`hypothesis`/`verification_plan`/`next_step`/`conclusion`), `strictness?` | — | `role`, `format`, `constraints[]`, `examples?[]` |
+| `guidance_followups` | Post-conclusion follow-up suggestions | ✅ | `domain?[]` | — | `actions[]`, `ownersHint?` |
+| `guidance_prompts_catalog` | Catalog of user-facing prompts for discovery | ✅ | `locale?` | — | `prompts[]` (each: `name`, `title`, `description`, `whenToUse?[]`, `arguments?[]`) |
+
 ### Resources
 | URI | Description |
 |-----|-------------|
@@ -89,7 +98,7 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 
 ### Typical workflow
 1. Client sends `initialize`; the server negotiates the protocol version and returns capabilities.
-2. `tools/list` returns 17 tools.
+2. `tools/list` returns all operational and guidance tools (exact count may vary as features evolve).
 3. Run `hypothesis_propose` to generate and persist hypotheses; returned items include `id` for each hypothesis. If the generator provided a verification plan, an initial `test_plan` is created and its `testPlanId` is included. Then refine with `test_plan_update`, prioritize via `test_prioritize`, and finalize with `conclusion_finalize`.
 4. Update/remove hypotheses and test plans using `hypothesis_update`, `hypothesis_remove`, `test_plan_update`, and `test_plan_remove`.
 5. Finalize a high-confidence hypothesis via `hypothesis_finalize`.

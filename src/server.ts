@@ -34,6 +34,7 @@ import { testPlanTool } from "./tools/test_plan.js";
 import { testPlanUpdateTool } from "./tools/test_plan_update.js";
 import { testPlanRemoveTool } from "./tools/test_plan_remove.js";
 import { bulkDeleteProvisionalTool } from "./tools/bulk_delete_provisional.js";
+import { GUIDANCE_TOOLS } from "./tools/guidance.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
 
 // Keep server version in sync with package.json
@@ -61,6 +62,7 @@ const TOOL_REGISTRY: Array<ToolDefinition<any, any>> = [
   prioritizeTool,
   bulkDeleteProvisionalTool,
   conclusionTool,
+  ...GUIDANCE_TOOLS,
 ];
 
 let samplingManager: LLMProviderManager | undefined;

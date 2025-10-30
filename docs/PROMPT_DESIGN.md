@@ -9,45 +9,56 @@ MCP-RCAは、MCPプロトコルの「プロンプト」「リソース」「ツ�
 1. **プロンプト**: LLMへの入力テンプレート（例: 仮説生成、観測要約、次のアクション提案）
 2. **リソース**: ガイダンス・ベストプラクティス・チェックリスト等の参照情報
 3. **ツール**: RCAケース・観測・仮説・検証・結論などの操作API
+# RCA Prompt-Based Assistance Design
 
-ユーザーは、プロンプトでLLMに質問・指示し、リソースで知識を補い、ツールでデータ操作を行うことで、RCAを段階的に進めます。
+## Overview
 
----
+MCP-RCA uses the MCP protocol’s Prompts, Resources, and Tools features to guide Root Cause Analysis (RCA) in a structured and practical way.
 
-## 命名規則（一般）
+### Design principles
 
-一貫性と可読性のため、以下の命名規則を採用します。
+1. Prompts: Input templates for the LLM (e.g., hypothesis generation, observation summarization, next-step suggestions)
+2. Resources: User-facing reference content (guides, best practices, checklists)
+3. Tools: Action APIs for RCA entities (cases, observations, hypotheses, tests, conclusions)
 
-- プロンプト名: 小文字のスネークケース。カテゴリ接頭辞は任意だが本プロジェクトでは `rca_` を推奨。
-  - 例: `rca_start_investigation`, `rca_next_step`, `rca_hypothesis_guide`, `rca_verification_planning`, `rca_conclusion_guide`
-- ツール名: 小文字のスネークケース（既存実装に準拠）。
-  - 例: `case_create`, `observation_add`, `hypothesis_propose`, `test_plan`, `conclusion_finalize`, `guidance_best_practices`
-- リソース名: 小文字のスネークケース。URIは `doc://mcp-rca/...` でスラッシュ区切り。
-  - 例（name）: `rca_best_practices`, `rca_guide`
-  - 例（uri）: `doc://mcp-rca/best-practices`, `doc://mcp-rca/guide/checklist`
-- 引数/JSONフィールド: lowerCamelCase（既存の `caseId`, `hypothesisId` 等に準拠）。
-  - 例: `caseId`, `currentPhase`, `followUps`
-- 予約禁止: ドット区切り（`rca.next_step` など）は使用しない（クライアント実装間の互換性のため）。
-
-この規則により、UI上のスラッシュコマンド化・自動補完・ドキュメント検索の一貫性が向上します。
+Users progress RCA by asking/instructing the LLM with prompts, reading knowledge via resources, and executing data operations with tools.
 
 ---
 
-## MCPプロンプト設計
+## Naming conventions (general)
 
-MCPのプロンプトは「LLMへの入力テンプレート」として設計します。各プロンプトは、
+To keep things consistent and readable:
 
-- name: 一意の識別子（例: rca.hypothesis_propose）
-- description: 用途説明
-- arguments: 必要な引数（例: caseId, observationSummary）
-- messages: LLMに渡す構造化メッセージ（role: user/assistant, content: text等）
+- Prompt names: snake_case. Category prefix is optional; we recommend rca_.
+  - Examples: rca_start_investigation, rca_next_step, rca_hypothesis_guide, rca_verification_planning, rca_conclusion_guide
+- Tool names: snake_case (consistent with existing tools).
+  - Examples: case_create, observation_add, hypothesis_propose, test_plan, conclusion_finalize, guidance_best_practices
+- Resource names: snake_case. URIs use doc://mcp-rca/... with slash separators.
+  - Examples (name): rca_best_practices, rca_guide
+  - Examples (uri): doc://mcp-rca/best-practices, doc://mcp-rca/guide/checklist
+- Argument/JSON fields: lowerCamelCase (e.g., caseId, hypothesisId).
+  - Examples: caseId, currentPhase, followUps
+- Avoid dotted names (e.g., rca.next_step) for broader client compatibility.
 
-### 例: 仮説生成プロンプト
+This improves slash commands, auto-completion, and discoverability.
+
+---
+
+## MCP Prompt design
+
+MCP prompts are designed as LLM input templates. Each prompt includes:
+
+- name: Unique identifier (e.g., rca_hypothesis_propose)
+- description: Human-friendly description
+- arguments: Required/optional fields (e.g., caseId, observationSummary)
+- messages: Structured messages for the LLM (role: user/assistant, content: text, etc.)
+
+### Example: Hypothesis generation prompt
 
 ```json
 {
   "name": "rca_hypothesis_propose",
-  "description": "観測事実から根本原因の仮説を生成する",
+  "description": "Generate root cause hypotheses from observations",
   "arguments": [
     { "name": "caseId", "required": true },
     { "name": "observationSummary", "required": false }
@@ -57,19 +68,19 @@ MCPのプロンプトは「LLMへの入力テンプレート」として設計�
       "role": "user",
       "content": {
         "type": "text",
-        "text": "以下の観測事実から、根本原因の仮説を3つ提案してください。\n\n観測: {{observationSummary}}"
+        "text": "Based on the observations below, propose up to 3 testable root-cause hypotheses.\n\nObservations: {{observationSummary}}"
       }
     }
   ]
 }
 ```
 
-### 例: 次のステップ提案プロンプト
+### Example: Next-step suggestion prompt
 
 ```json
 {
   "name": "rca_next_step",
-  "description": "ケースの進捗に応じて次のアクションを提案する",
+  "description": "Suggest the next actions based on current case progress",
   "arguments": [
     { "name": "caseId", "required": true },
     { "name": "currentPhase", "required": false }
@@ -79,7 +90,7 @@ MCPのプロンプトは「LLMへの入力テンプレート」として設計�
       "role": "user",
       "content": {
         "type": "text",
-        "text": "RCAケースの進捗は以下です。\n\nフェーズ: {{currentPhase}}\n観測数: {{observationCount}}\n仮説数: {{hypothesisCount}}\nテスト計画数: {{testPlanCount}}\n\n次に取るべきアクションを簡潔に提案してください。"
+        "text": "Current RCA case progress:\n\nPhase: {{currentPhase}}\nObservations: {{observationCount}}\nHypotheses: {{hypothesisCount}}\nTest plans: {{testPlanCount}}\n\nPlease propose concise next actions."
       }
     }
   ]
@@ -88,77 +99,53 @@ MCPのプロンプトは「LLMへの入力テンプレート」として設計�
 
 ---
 
-## MCPリソース設計
+## MCP Resource design
 
-ガイダンスやベストプラクティスは「リソース」として提供します。
+Guides and best practices are provided as Resources (user-facing documentation).
 
-- name: rca.guide, rca.checklist, rca.best_practices など
-- mimeType: text/markdown, text/plain, application/json など
-- 内容: RCAの進め方、チェックリスト、よくある落とし穴、参考資料等
+- name: rca_guide, rca_checklist, rca_best_practices, etc.
+- mimeType: text/markdown, text/plain, application/json
+- Content: How-to guides, checklists, pitfalls, references
 
-### 例: ベストプラクティスリソース
+### Example: Best practices resource
 
 ```json
 {
   "uri": "resource://rca/best_practices",
-  "name": "rca.best_practices",
+  "name": "rca_best_practices",
   "mimeType": "text/markdown",
-  "text": "## RCAベストプラクティス\n- 事実ベースで進める\n- 偏見を避ける\n- 系統的に掘り下げる\n- チームで協力する\n..."
+  "text": "## RCA Best Practices\n- Be evidence-driven\n- Avoid bias\n- Dig systematically\n- Collaborate as a team\n..."
 }
 ```
 
 ---
 
-## MCPツール設計
+## Bridging user prompts and the LLM
 
-RCAの各操作は「ツール」としてAPI化されています。
+Goal: Standardize the flow where the LLM understands available user prompts, nudges the user to choose one, and—upon approval—executes the right tools.
 
-- case_create, observation_add, hypothesis_propose, test_plan, conclusion_finalize など
-- 各ツールはパラメータと戻り値を持つ
+### A. Prompt catalog for the LLM (as a Tool)
 
-### 例: 仮説生成ツール
-
-```json
-{
-  "name": "hypothesis_propose",
-  "params": {
-    "caseId": "string",
-    "text": "string"
-  },
-  "result": {
-    "hypotheses": [ ... ]
-  }
-}
-```
-
----
-
-## ユーザープロンプトとLLMの橋渡し設計
-
-目的:「LLMがユーザー向けプロンプトの存在を理解し、適切なタイミングでユーザーに選択を促し、その選択（キー）をトリガーにLLMが必要なツールを実行する」流れを標準化します。
-
-### A. プロンプト可視化をLLMが理解するためのカタログ（ツール）
-
-- ツール名（設計）: guidance_prompts_catalog
-- 用途: MCPの prompts/list に相当するメタデータを、LLM向けに要約・意図付きで返す
-- 入力: { locale?: string }
-- 出力（例）:
+- Tool name (design): guidance_prompts_catalog
+- Purpose: Return a prompts/list-like catalog summarized for the LLM with intent and usage hints
+- Input: { locale?: string }
+- Output (example):
   {
     "prompts": [
       {
         "name": "rca_start_investigation",
-        "title": "調査開始",
-        "description": "新規ケース作成と初期観測の収集を案内",
-        "whenToUse": ["インシデント発生直後", "ケース未作成"],
+        "title": "Start investigation",
+        "description": "Guide for creating a new case and collecting initial observations",
+        "whenToUse": ["Right after incident", "No case yet"],
         "arguments": [
-          {"name": "incidentSummary", "required": false, "hint": "1-2行"}
+          {"name": "incidentSummary", "required": false, "hint": "1-2 lines"}
         ]
       },
       {
         "name": "rca_next_step",
-        "title": "次のアクション提案",
-        "description": "現在のケース状態から次の一手を簡潔に提案",
-        "whenToUse": ["方針が分からない", "進捗確認"],
+        "title": "Next-step suggestion",
+        "description": "Concise next actions from current case state",
+        "whenToUse": ["Unsure what to do", "Progress check"],
         "arguments": [
           {"name": "caseId", "required": true},
           {"name": "currentPhase", "required": false}
@@ -167,141 +154,154 @@ RCAの各操作は「ツール」としてAPI化されています。
     ]
   }
 
-備考: 実体はサーバーが管理するプロンプト一覧（prompts）を反映し、LLMがユーザーに勧めやすいよう「whenToUse/hint」を付与します。
+Note: Internally mirrors server-managed prompts but adds whenToUse/hint so the LLM can recommend them to users.
 
-### B. LLM→ユーザーへの促し（インタラクション契約）
+### B. LLM → user nudge (interaction contract)
 
-LLMはプロンプトの利用をユーザーへ提案する際、以下の「最小キー」を返します。クライアントはこれを検出して、ユーザーUIでワンクリック誘導（slashコマンド等）を表示します。
+When recommending a prompt, the LLM returns a minimal key that clients can detect and surface as a 1-click action (e.g., slash command):
 
 - suggestedPrompt: {
-  name: string;             // 例: "rca.next_step"
-  arguments?: object;       // 例: { caseId: "case_xxx" }
-  rationale?: string;       // 提案理由（短文）
+  name: string;             // e.g., "rca_next_step"
+  arguments?: object;       // e.g., { caseId: "case_xxx" }
+  rationale?: string;       // short reason
 }
 
-フォールバック: クライアントが自動起動に対応しない場合は、LLMが自然言語で「/rca_next_step を選択してください」等、手動手順を提示します。
+Fallback: If auto-activation isn’t supported, the LLM gives manual instructions like “Please select /rca_next_step”.
 
-### C. ユーザー選択→ツール実行への手順ゲーティング
+### C. Gating from user choice to tool execution
 
-1) ユーザーがプロンプトを選択（prompts/get→messages注入）
-2) 以降のターンで、LLMは必要に応じて guidance_* ツール（LLM向けガイダンス）を呼ぶ
-3) 操作が必要なら、RCAツール群（case_*, observation_*, hypothesis_*, test_plan_*, conclusion_*）を呼ぶ
+1) User selects a prompt (client calls prompts/get and injects messages)
+2) In subsequent turns the LLM calls guidance_* tools (LLM-facing guidance) as needed
+3) For data operations, call RCA tools (case_*, observation_*, hypothesis_*, test_plan_*, conclusion_*)
 
-安全策（設計）:
-- ゲートキー: クライアントは「suggestedPromptがユーザーにより承認された」事実を会話メタに設定
-- サーバー側は「承認済みフラグ不在時は破壊的ツール（削除等）を拒否」等のポリシーを実装可能
+Safety (design):
+- Gate key: Client annotates the conversation that suggestedPrompt was user-approved
+- Server may enforce policies (e.g., deny destructive tools without approval flag)
 
-### D. 例（要旨）
+### D. Example (essentials)
 
-1. LLMがプロンプト候補を提示
+1. LLM proposes a prompt
 
 ```
 assistant (structuredContent): {
   "suggestedPrompt": {
     "name": "rca_next_step",
     "arguments": { "caseId": "case_123" },
-    "rationale": "観測は十分、次は優先度付きの検証計画が必要です"
+    "rationale": "Observations are sufficient; prioritize verification plans next"
   }
 }
 ```
 
-2. ユーザーがUIで rca.next_step を選択 → prompts/get でmessages挿入
+2. User selects rca_next_step in UI → client injects prompts/get messages
 
-3. 次ターンでLLMが guidance_phase(phase="testing") を呼び、その結果を踏まえて `test_plan` を最小限だけ実行提案
+3. Next turn the LLM calls guidance_phase(phase="testing"), then proposes minimal `test_plan` calls
 
 ---
 
-## LLM向けガイダンス設計（ツール）
+## LLM-oriented guidance (as Tools)
 
-ユーザー向けの参照情報は「リソース」で提供しつつ、LLMが思考・出力の質を安定化させるためのガイダンスは「ツール」で供給します。プロンプトは「最初にガイダンスツールを呼んでから推論する」ようにLLMへ誘導します。
+Keep user-facing references as Resources, but supply LLM operational guidance via Tools. Prompts instruct the LLM to first call guidance tools, then reason and act.
 
-重要: MCPのプロンプト自体はツール実行を内包しません。クライアントが「プロンプトの指示に従ってツールを呼ぶ」か、LLMがツール呼び出しを要求し、クライアントがそれを実行する前提です。
+Important: MCP prompts do not execute tools themselves. Either clients call tools per prompt instructions, or the LLM requests tool calls and the client executes them.
 
-### 目的
+### Goals
 
-- LLMに対して、フェーズ別の進め方、チェックリスト、アンチパターン、次の一手を定型化して供給
-- 出力の「ばらつき」を抑え、安全な手順・用語・フォーマットを強制
-- 将来のベストプラクティス更新を「ツールのレスポンス更新」で一括反映
+- Provide phase-specific playbooks, checklists, anti-patterns, and “next move” heuristics
+- Reduce output variance by enforcing safe steps, terminology, and formats
+- Centralize updates to best practices by updating tool responses
 
-### ツール一覧（設計）
+### Tool list (design)
 
 1) guidance_best_practices
-- 用途: RCA全体の原則・アンチパターン・用語をLLM向けに返す
-- 入力: { locale?: string }
-- 出力: {
-  systemPreamble: string,      // system相当の前置き
-  heuristics: string[],        // 判断の指針
-  antiPatterns: string[],      // やってはいけないこと
-  citations?: string[]         // 参考
+- Purpose: Return principles, anti-patterns, and glossary for the LLM
+- Input: { locale?: string }
+- Output: {
+  systemPreamble: string,
+  heuristics: string[],
+  antiPatterns: string[],
+  citations?: string[]
 }
 
 2) guidance_phase
-- 用途: フェーズ別の行動指針・チェックリストを返す
-- 入力: { phase: "observation"|"hypothesis"|"testing"|"conclusion", level?: "basic"|"advanced" }
-- 出力: {
-  steps: string[],             // 推奨手順（箇条書き）
-  checklists: string[],        // チェック項目
-  redFlags: string[],          // 典型的な落とし穴
-  toolHints: string[]          // 使うべきツール名と意図
+- Purpose: Return phase-specific guidance and checklists
+- Input: { phase: "observation"|"hypothesis"|"testing"|"conclusion", level?: "basic"|"advanced" }
+- Output: {
+  steps: string[],
+  checklists: string[],
+  redFlags: string[],
+  toolHints: string[]
 }
 
 3) guidance_prompt_scaffold
-- 用途: LLMに与えるべきプロンプト雛形（役割宣言、出力フォーマット、制約）
-- 入力: { task: "hypothesis"|"verification_plan"|"next_step"|"conclusion", strictness?: number }
-- 出力: {
-  role: string,                // あなたは○○の専門家…
-  format: string,              // 出力フォーマット例
-  constraints: string[],       // 守るべき制約
-  examples?: string[]          // サンプル
+- Purpose: Prompt scaffolds for the LLM (role, output format, constraints)
+- Input: { task: "hypothesis"|"verification_plan"|"next_step"|"conclusion", strictness?: number }
+- Output: {
+  role: string,
+  format: string,
+  constraints: string[],
+  examples?: string[]
 }
 
 4) guidance_followups
-- 用途: 結論後のフォローアップ（再発防止・文書化・監視）
-- 入力: { domain?: string[] }
-- 出力: { actions: string[], ownersHint?: string }
+- Purpose: Post-conclusion follow-ups (prevention, documentation, monitoring)
+- Input: { domain?: string[] }
+- Output: { actions: string[], ownersHint?: string }
 
-出力は「LLMがそのままシステム/ユーザメッセージとして利用できる短い断片」を想定します（長文ドキュメントはリソースへ）。
+Outputs should be short snippets the LLM can directly use as system/user messages (long-form docs belong in Resources).
 
-### プロンプトからの誘導パターン
+### Prompt induction patterns
 
-2つの実装パターンを想定します。
+Two usage patterns:
 
-- Pull（推奨）: プロンプトの先頭で「まず guidance_* ツールを呼び、内容を反映せよ」とLLMに指示。
-- Embed: クライアントが先に guidance_* を呼び、その結果をプロンプトのmessagesに埋め込む。
+- Pull (recommended): Prompt instructions tell the LLM to call guidance_* first, then act.
+- Embed: Client calls guidance_* first and embeds the result in prompt messages.
 
-#### Pull例: rca.next_step
+#### Pull example: rca_next_step
 
-prompts/get が返すメッセージ（要旨）:
+prompts/get returns messages like:
 
 ```
 role: user
 text: |
-  次の手順で回答してください。
-  1) guidance_phase を phase={{currentPhase}} で実行して要約を取り込み、
-  2) その指針に従って、次に取るべき具体アクションを3件以内で提案。
-  入出力は簡潔に。不要な前置きは省略してください。
-  ケース要約: 観測={{observationCount}} 仮説={{hypothesisCount}} テスト={{testPlanCount}}
+  Answer with the following procedure:
+  1) Call guidance_phase with phase={{currentPhase}} and absorb its summary
+  2) Propose up to 3 concrete next actions following that guidance
+  Keep it concise and omit unnecessary prefaces.
+  Case summary: observations={{observationCount}} hypotheses={{hypothesisCount}} tests={{testPlanCount}}
 ```
 
-#### Embed例: rca_hypothesis_propose
+#### Embed example: rca_hypothesis_propose
 
-クライアント側で guidance_prompt_scaffold(task="hypothesis") を呼び、結果を1つの先頭メッセージとして埋め込み、その後に観測サマリと出力要求を続ける。
+The client calls guidance_prompt_scaffold(task="hypothesis") in advance and injects it as the first message, followed by observation summary and the output request.
+
+---
+
+## User experience flow (practical)
+
+1. Case creation: Create a new RCA case via case_create
+2. Record observations: Log facts via observation_add
+3. Generate hypotheses:
+   - Pull: The prompt for rca_hypothesis_propose tells the LLM to call guidance_prompt_scaffold(task="hypothesis")
+   - Embed: The client pre-fetches guidance_prompt_scaffold and injects it into messages
+   - Then the LLM proposes hypotheses
+4. Plan verification: Register test plans via test_plan
+5. Record conclusion: Finalize via conclusion_finalize (root causes, fix, follow-ups)
+6. Read guidance: resources/get rca_guide, rca_best_practices for user-facing docs
 
 ---
 
-## ユーザー体験フロー（実践例）
+## Implementation plan (high level)
 
-1. **ケース作成**: case_create で新規RCAケースを作成
-2. **観測記録**: observation_add で事実を記録
-3. **仮説生成**:
-  - Pull: rca_hypothesis_propose の指示に従い、LLMが guidance_prompt_scaffold(task="hypothesis") を呼ぶ
-  - Embed: クライアントが guidance_prompt_scaffold を事前取得してmessagesへ埋め込み
-  - そのうえで LLM に仮説を提案させる
-4. **検証計画**: test_plan で仮説の検証方法を登録
-5. **結論記録**: conclusion_finalize で根本原因・修正・フォローアップを記録
-6. **ガイダンス参照**: resources/get rca.guide, rca.best_practices で知識を補う
+1. Prompt definitions (src/prompts/rca-*.ts)
+2. Resource definitions (src/resources/rca-*.md)
+3. Tool APIs (src/tools/)
+4. Wire Prompts, Resources, and Tools together in UI/CLI
 
 ---
+
+## Summary
+
+By combining Prompts (LLM input), Resources (user knowledge), and Tools (action APIs), MCP-RCA enables practical, structured RCA. Users can ask the LLM with prompts, learn from resources, and operate data with tools—without getting lost along the way.
 
 ## 実装計画
 

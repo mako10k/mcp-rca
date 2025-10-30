@@ -33,6 +33,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
       capabilities: {
         tools: { listChanged: true },
         resources: { listChanged: true, subscribe: true },
+        prompts: { listChanged: true },
         logging: {},
         sampling: {},
       },

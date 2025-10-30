@@ -13,6 +13,18 @@ Last updated: 2025-10-21
 - Dev hot-reload: `npm run dev` (tsx) — do not use via MCP clients because it writes non-JSON to stdout
 
 ## Capabilities
+
+### Prompts
+> MCP prompts provide structured guidance to the LLM at different stages of the RCA workflow.
+
+| Name | Purpose | Key Arguments |
+|------|---------|---------------|
+| `rca_start_investigation` | Guide for starting a new RCA case and collecting initial observations | `incidentSummary?` (optional summary) |
+| `rca_next_step` | Suggest next actions based on current case state | `caseId` (required), `currentPhase?` (optional phase hint) |
+| `rca_hypothesis_propose` | Guide for generating effective root cause hypotheses | `caseId` (required), `observationSummary?` (optional summary) |
+
+**Usage**: Prompts return structured messages that the LLM can use to guide the investigation. They analyze the current case state and provide contextual recommendations.
+
 ### Tools
 > All listed tools are implemented (✅). Inputs/outputs are validated by Zod and returned as both `structuredContent` (JSON) and rendered text.
 
@@ -97,13 +109,16 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 - Persisted values are included in responses like `case_get` (omitted when unset).
 
 ### Typical workflow
-1. Client sends `initialize`; the server negotiates the protocol version and returns capabilities.
-2. `tools/list` returns all operational and guidance tools (exact count may vary as features evolve).
-3. Run `hypothesis_propose` to generate and persist hypotheses; returned items include `id` for each hypothesis. If the generator provided a verification plan, an initial `test_plan` is created and its `testPlanId` is included. Then refine with `test_plan_update`, prioritize via `test_prioritize`, and finalize with `conclusion_finalize`.
-4. Update/remove hypotheses and test plans using `hypothesis_update`, `hypothesis_remove`, `test_plan_update`, and `test_plan_remove`.
-5. Finalize a high-confidence hypothesis via `hypothesis_finalize`.
-6. Prune low-confidence/low-priority items via `bulk_delete_provisional`.
-7. Use `resources/read` to fetch reference documentation at any time.
+1. Client sends `initialize`; the server negotiates the protocol version and returns capabilities (tools, resources, prompts).
+2. **Start investigation**: Use `prompts/get` with `rca_start_investigation` to get guidance on creating a case and recording observations.
+3. **Create case and observations**: Call `case_create` and `observation_add` to record incident facts.
+4. **Get next steps**: Use `prompts/get` with `rca_next_step` (passing `caseId`) to analyze current state and get recommendations.
+5. **Generate hypotheses**: Use `prompts/get` with `rca_hypothesis_propose` for hypothesis guidance, then call `hypothesis_propose` to generate and persist hypotheses with LLM assistance.
+6. **Plan verification**: Create test plans with `test_plan`, prioritize using `test_prioritize`, and execute verification steps.
+7. **Update and refine**: Use `hypothesis_update`, `hypothesis_finalize`, `test_plan_update` as investigation progresses.
+8. **Clean up**: Prune low-confidence items with `bulk_delete_provisional`.
+9. **Conclude**: Call `conclusion_finalize` to record root causes, fixes, and follow-up actions.
+10. **Reference materials**: Use `resources/read` to fetch documentation and `guidance_*` tools for LLM-oriented best practices at any time.
 
 ### Case-management design notes
 - Minimize tool surface: case CRUD is consolidated into `case_create`, `case_get`, `case_list`, `case_update`. Deletion is soft via `case_update` with `status: "archived"`.

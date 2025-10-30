@@ -36,6 +36,7 @@ import { testPlanRemoveTool } from "./tools/test_plan_remove.js";
 import { bulkDeleteProvisionalTool } from "./tools/bulk_delete_provisional.js";
 import { GUIDANCE_TOOLS } from "./tools/guidance.js";
 import type { ToolContext, ToolDefinition } from "./tools/types.js";
+import { registerPrompts } from "./prompts/index.js";
 
 // Keep server version in sync with package.json
 const require = createRequire(import.meta.url);
@@ -86,6 +87,7 @@ export async function buildServer(streams?: TransportStreams) {
 
   TOOL_REGISTRY.forEach((tool) => registerTool(server, tool));
   await registerDefaultResources(server);
+  await registerPrompts(server);
   registerSamplingHandler(server);
 
   const transport = createTransport(streams);

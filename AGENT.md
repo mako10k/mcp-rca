@@ -35,20 +35,20 @@ Last updated: 2025-10-21
 | `case_create` | Create a new RCA case | ✅ | `title`, `severity`, `tags?` | `gitBranch`, `gitCommit`, `deployEnv` | `caseId`, `case` |
 | `case_get` | Fetch a single case (optional paging for related objects) | ✅ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | — | `case`, `cursors?` |
 | `case_list` | List/search cases (with paging) | ✅ | `query?`, `tags?`, `severity?`, `includeArchived?`, `pageSize?`, `cursor?` | — | `cases[]`, `nextCursor?`, `total?` |
-| `case_update` | Update case metadata / archive management | ✅ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `case` |
+| `case_update` | Update case metadata / archive management | ✅ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `caseId`, `case` |
 | `observation_add` | Add an observation to a case | ✅ | `caseId`, `what`, `context?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `caseId`, `observation`, `case` |
 | `observation_remove` | Remove an observation (soft delete) | ✅ | `caseId`, `observationId` | — | `caseId`, `observation`, `case` |
 | `observation_update` | Update an observation | ✅ | `caseId`, `observationId`, `what?`, `context?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `caseId`, `observation`, `case` |
-| `hypothesis_propose` | Generate hypotheses (persist and return IDs; creates a draft test plan if provided by the generator) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | — | `hypotheses[]` (each includes `id`, `caseId`, `createdAt`, `updatedAt`, and optional minimal `testPlan`) |
-| `hypothesis_update` | Update a hypothesis | ✅ | `caseId`, `hypothesisId`, `text?`, `rationale?`, `confidence?` | — | `hypothesis`, `case` |
-| `hypothesis_remove` | Remove a hypothesis (and related test plans) | ✅ | `caseId`, `hypothesisId` | — | `hypothesis`, `case` |
-| `hypothesis_finalize` | Finalize a hypothesis (sets `confidence` to 1.0) | ✅ | `caseId`, `hypothesisId` | — | `hypothesis`, `case` |
-| `test_plan_create` | Create a verification plan | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `testPlanId`, `status`, `notes` |
-| `test_plan_update` | Update a test plan | ✅ | `caseId`, `testPlanId`, `method?`, `expected?`, `metric?`, `priority?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `testPlan`, `case` |
-| `test_plan_remove` | Remove a test plan | ✅ | `caseId`, `testPlanId` | — | `testPlan`, `case` |
+| `hypothesis_propose` | Generate hypotheses (persist and return IDs; creates a draft test plan if provided by the generator) | ✅ | `caseId`, `text`, `rationale?`, `context?`, `logs?` | — | `caseId`, `hypotheses[]`, `case` (each hypothesis includes `id`, `caseId`, `createdAt`, `updatedAt`, and optional minimal `testPlan`) |
+| `hypothesis_update` | Update a hypothesis | ✅ | `caseId`, `hypothesisId`, `text?`, `rationale?`, `confidence?` | — | `caseId`, `hypothesis`, `case` |
+| `hypothesis_remove` | Remove a hypothesis (and related test plans) | ✅ | `caseId`, `hypothesisId` | — | `caseId`, `hypothesis`, `case` |
+| `hypothesis_finalize` | Finalize a hypothesis (sets `confidence` to 1.0) | ✅ | `caseId`, `hypothesisId` | — | `caseId`, `hypothesis`, `case` |
+| `test_plan_create` | Create a verification plan | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `caseId`, `testPlan`, `case` |
+| `test_plan_update` | Update a test plan | ✅ | `caseId`, `testPlanId`, `method?`, `expected?`, `metric?`, `priority?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `caseId`, `testPlan`, `case` |
+| `test_plan_remove` | Remove a test plan | ✅ | `caseId`, `testPlanId` | — | `caseId`, `testPlan`, `case` |
 | `test_prioritize` | Prioritize test plans (RICE/ICE) | ✅ | `strategy`, `items[]` | — | `ranked[]` |
 | `bulk_delete_provisional` | Bulk delete provisional items (by confidence/priority thresholds) | ✅ | `caseId`, `confidenceThreshold?`, `priorityThreshold?` | — | `deletedHypotheses[]`, `deletedTestPlans[]`, `case` |
-| `conclusion_finalize` | Finalize conclusion and follow-ups | ✅ | `caseId`, `rootCauses[]`, `fix`, `followUps?` | — | `conclusion` |
+| `conclusion_finalize` | Finalize conclusion and follow-ups | ✅ | `caseId`, `rootCauses[]`, `fix`, `followUps?` | — | `caseId`, `conclusion`, `case` |
 
 #### Guidance tools (LLM-facing)
 | Name | Role | Status | Key inputs | Metadata args (optional) | Key outputs |
@@ -137,6 +137,36 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 - Tests: `npm run test` (Vitest)
 - Typecheck: `npm run typecheck`
 - When invoked by an MCP client, always run the built bundle. `npm run dev` (tsx) writes to stdout and can break JSON framing.
+
+## Response Structure Standardization
+
+All mutation tools follow a consistent response structure:
+
+### Standard Pattern
+
+```typescript
+{
+  caseId: string;           // Always at top level for routing/logging
+  [resourceName]: Resource; // The created/updated/removed resource
+  case: Case;               // Full case object after mutation
+}
+```
+
+### Benefits
+
+- **Consistency**: Same pattern across all mutation tools
+- **Context Access**: `caseId` always available at top level
+- **Immediate State**: Full `case` object without additional queries
+- **Token Optimization**: Combine with `case_get`'s `include` parameter for efficient workflows
+
+### Examples
+
+- `observation_add` → `{ caseId, observation, case }`
+- `hypothesis_propose` → `{ caseId, hypotheses, case }`
+- `test_plan_create` → `{ caseId, testPlan, case }`
+- `conclusion_finalize` → `{ caseId, conclusion, case }`
+
+See `docs/RESPONSE_STRUCTURE_STANDARDIZATION.md` for complete details.
 
 ## Logging & error handling
 - All server logging must go through `src/logger.ts`, emitting structured JSON to stderr. Do not use `console.*` directly except for user-facing CLI help/version on stdout.

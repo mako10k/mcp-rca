@@ -50,7 +50,23 @@ const hypothesisProposeInputSchema = z.object({
 });
 
 const hypothesisProposeOutputSchema = z.object({
+  caseId: z.string(),
   hypotheses: z.array(hypothesisSchema),
+  case: z.object({
+    id: z.string(),
+    title: z.string(),
+    severity: z.string(),
+    tags: z.array(z.string()),
+    status: z.string(),
+    observations: z.array(z.any()),
+    impacts: z.array(z.any()),
+    hypotheses: z.array(z.any()),
+    tests: z.array(z.any()),
+    results: z.array(z.any()),
+    conclusion: z.any().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
 });
 
 export type HypothesisProposeInput = z.infer<typeof hypothesisProposeInputSchema>;
@@ -71,13 +87,16 @@ export const hypothesisProposeTool: ToolDefinition<
 
     // Persist each hypothesis sequentially to avoid race conditions with file I/O
     const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
+    let updatedCase;
     
     for (const hyp of generated) {
-      const { hypothesis } = await addHypothesis({
+      const { hypothesis, case: caseAfterHypothesis } = await addHypothesis({
         caseId: input.caseId,
         text: hyp.text,
         rationale: hyp.rationale,
       });
+      
+      updatedCase = caseAfterHypothesis;
       
       let plan: MinimalTestPlan | undefined;
       if (hyp.testPlan?.method && hyp.testPlan?.expected) {
@@ -90,6 +109,7 @@ export const hypothesisProposeTool: ToolDefinition<
           expected: hyp.testPlan.expected,
           metric: hyp.testPlan.metric,
         });
+        updatedCase = result.case;
         plan = {
           id: result.testPlan.id,
           hypothesisId: hypothesis.id,
@@ -102,6 +122,17 @@ export const hypothesisProposeTool: ToolDefinition<
       persisted.push({ ...hypothesis, testPlan: plan });
     }
 
-    return { hypotheses: persisted };
+    // Fetch final case state after all mutations
+    const { getCase } = await import("../data/caseStore.js");
+    const finalCase = await getCase(input.caseId);
+    if (!finalCase) {
+      throw new Error(`Case ${input.caseId} not found after hypothesis creation`);
+    }
+
+    return {
+      caseId: input.caseId,
+      hypotheses: persisted,
+      case: finalCase.case,
+    };
   },
 };

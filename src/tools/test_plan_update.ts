@@ -15,6 +15,7 @@ const testPlanUpdateInputSchema = z.object({
 });
 
 const testPlanUpdateOutputSchema = z.object({
+  caseId: z.string(),
   testPlan: z.object({
     id: z.string(),
     caseId: z.string(),
@@ -70,6 +71,10 @@ export const testPlanUpdateTool: ToolDefinition<
       gitCommit: input.gitCommit,
       deployEnv: input.deployEnv,
     });
-    return result;
+    return {
+      caseId: input.caseId,
+      testPlan: result.testPlan,
+      case: result.case,
+    };
   },
 };

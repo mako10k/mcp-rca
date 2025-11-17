@@ -17,6 +17,7 @@ const caseUpdateInputSchema = z.object({
 });
 
 const caseUpdateOutputSchema = z.object({
+  caseId: z.string(),
   case: caseSchema,
 });
 
@@ -65,6 +66,9 @@ export const caseUpdateTool: ToolDefinition<CaseUpdateInput, CaseUpdateOutput> =
       },
     });
 
-    return result;
+    return {
+      caseId: input.caseId,
+      case: result.case,
+    };
   },
 };

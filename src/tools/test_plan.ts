@@ -14,9 +14,36 @@ const testPlanInputSchema = z.object({
 });
 
 const testPlanOutputSchema = z.object({
-  testPlanId: z.string(),
-  status: z.enum(["draft", "scheduled", "completed"]),
-  notes: z.string().optional(),
+  caseId: z.string(),
+  testPlan: z.object({
+    id: z.string(),
+    caseId: z.string(),
+    hypothesisId: z.string(),
+    method: z.string(),
+    expected: z.string(),
+    metric: z.string().optional(),
+    priority: z.number().int().min(1).max(10).optional(),
+    gitBranch: z.string().optional(),
+    gitCommit: z.string().optional(),
+    deployEnv: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
+  case: z.object({
+    id: z.string(),
+    title: z.string(),
+    severity: z.string(),
+    tags: z.array(z.string()),
+    status: z.string(),
+    observations: z.array(z.any()),
+    impacts: z.array(z.any()),
+    hypotheses: z.array(z.any()),
+    tests: z.array(z.any()),
+    results: z.array(z.any()),
+    conclusion: z.any().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
 });
 
 export type TestPlanInput = z.infer<typeof testPlanInputSchema>;
@@ -41,9 +68,9 @@ export const testPlanTool: ToolDefinition<TestPlanInput, TestPlanOutput> = {
       deployEnv: input.deployEnv?.trim() || undefined,
     });
     return {
-      testPlanId: result.testPlan.id,
-      status: "draft",
-      notes: `Draft plan created for hypothesis ${input.hypothesisId}`,
+      caseId: input.caseId,
+      testPlan: result.testPlan,
+      case: result.case,
     };
   },
 };

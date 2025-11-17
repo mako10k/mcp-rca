@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { generateHypotheses } from "../llm/generator.js";
-import { addHypothesis } from "../data/caseStore.js";
+import { addHypothesis, addTestPlan } from "../data/caseStore.js";
 import type { Hypothesis } from "../schema/hypothesis.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
 
@@ -85,27 +85,26 @@ export const hypothesisProposeTool: ToolDefinition<
     context.logger?.info("Generating hypotheses", { caseId: input.caseId });
     const generated = await generateHypotheses(input);
     // Persist each hypothesis sequentially to avoid race conditions with file I/O
+    context.logger?.info("Hypotheses generated", { count: generated.length });
     const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
-      const { hypothesis } = await addHypothesis({
-    
+
     for (const hyp of generated) {
-      const { hypothesis, case: caseAfterHypothesis } = await addHypothesis({
+      const { hypothesis } = await addHypothesis({
         caseId: input.caseId,
+        text: hyp.text,
+        rationale: hyp.rationale,
       });
-      
-      updatedCase = caseAfterHypothesis;
-      
+
       let plan: MinimalTestPlan | undefined;
       if (hyp.testPlan?.method && hyp.testPlan?.expected) {
-        // lazily import to avoid cycle
-        const { addTestPlan } = await import("../data/caseStore.js");
+        context.logger?.info("Creating initial test plan from generator output", { method: hyp.testPlan.method });
         const result = await addTestPlan({
           caseId: input.caseId,
           hypothesisId: hypothesis.id,
           method: hyp.testPlan.method,
+          expected: hyp.testPlan.expected,
           metric: hyp.testPlan.metric,
         });
-        updatedCase = result.case;
         plan = {
           id: result.testPlan.id,
           hypothesisId: hypothesis.id,
@@ -114,7 +113,7 @@ export const hypothesisProposeTool: ToolDefinition<
           metric: result.testPlan.metric,
         };
       }
-      
+
       persisted.push({ ...hypothesis, testPlan: plan });
     }
 
@@ -125,6 +124,7 @@ export const hypothesisProposeTool: ToolDefinition<
       throw new Error(`Case ${input.caseId} not found after hypothesis creation`);
     }
 
+    context.logger?.info("Generated and persisted hypotheses", { count: persisted.length });
     return {
       caseId: input.caseId,
       hypotheses: persisted,

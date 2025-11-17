@@ -19,8 +19,8 @@ describe("new features", () => {
     const { server, transport } = await buildServer({ input, output });
 
     try {
-  await mcpServerKit.connectToTransport(server, transport);
-  await connectAndInit(output, input);
+      await mcpServerKit.connectToTransport(server, transport);
+      await connectAndInit(output, input);
 
       // Create a case
       const caseCreate = await issueRequest(output, input, {
@@ -348,7 +348,7 @@ describe("new features", () => {
         },
       });
 
-      const obs2 = await issueRequest(output, input, {
+      await issueRequest(output, input, {
         id: 2002,
         method: "tools/call",
         params: {

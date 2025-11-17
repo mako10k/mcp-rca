@@ -685,7 +685,7 @@ export async function listObservations(options: ListObservationsOptions): Promis
     return true;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = filtered.sort((a, b) => {
     if (sortBy === "createdAt") {
       const aTime = new Date(a.createdAt).getTime();
       const bTime = new Date(b.createdAt).getTime();

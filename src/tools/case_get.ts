@@ -4,7 +4,7 @@ import type { Observation } from "../schema/case.js";
 import { caseSchema } from "./case.js";
 import type { ToolContext, ToolDefinition } from "./types.js";
 
-const includeEnum = z.enum(["observations"]);
+const includeEnum = z.enum(["observations", "hypotheses", "tests", "results"]);
 
 const caseGetInputSchema = z.object({
   caseId: z.string().min(1, "Case identifier is required"),
@@ -81,7 +81,14 @@ export const caseGetTool: ToolDefinition<CaseGetInput, CaseGetOutput> = {
       throw new Error(`Case ${input.caseId} not found`);
     }
 
-    const includeObservations = input.include?.includes("observations") ?? false;
+    // If include is not specified, return all data (backward compatibility)
+    // If include is specified, only return the requested collections
+    const includeAll = !input.include || input.include.length === 0;
+    const includeObservations = includeAll || (input.include?.includes("observations") ?? false);
+    const includeHypotheses = includeAll || (input.include?.includes("hypotheses") ?? false);
+    const includeTests = includeAll || (input.include?.includes("tests") ?? false);
+    const includeResults = includeAll || (input.include?.includes("results") ?? false);
+    
     const observationLimit = input.observationLimit ?? DEFAULT_OBSERVATION_LIMIT;
     const observationOffset = decodeObservationCursor(input.observationCursor);
 
@@ -99,11 +106,17 @@ export const caseGetTool: ToolDefinition<CaseGetInput, CaseGetOutput> = {
     const responseCase = {
       ...result.case,
       observations,
+      hypotheses: includeHypotheses ? result.case.hypotheses : [],
+      tests: includeTests ? result.case.tests : [],
+      results: includeResults ? result.case.results : [],
     };
 
     context.logger?.info("Fetched case", {
       caseId: input.caseId,
       includeObservations,
+      includeHypotheses,
+      includeTests,
+      includeResults,
     });
 
     return {

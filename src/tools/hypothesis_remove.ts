@@ -8,6 +8,7 @@ const hypothesisRemoveInputSchema = z.object({
 });
 
 const hypothesisRemoveOutputSchema = z.object({
+  caseId: z.string(),
   hypothesis: z.object({
     id: z.string(),
     caseId: z.string(),
@@ -48,6 +49,10 @@ export const hypothesisRemoveTool: ToolDefinition<
   handler: async (input: HypothesisRemoveInput, context: ToolContext) => {
     context.logger?.info("Removing hypothesis", { caseId: input.caseId, hypothesisId: input.hypothesisId });
     const result = await removeHypothesis(input);
-    return result;
+    return {
+      caseId: input.caseId,
+      hypothesis: result.hypothesis,
+      case: result.case,
+    };
   },
 };

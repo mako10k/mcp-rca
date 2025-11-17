@@ -8,6 +8,7 @@ const testPlanRemoveInputSchema = z.object({
 });
 
 const testPlanRemoveOutputSchema = z.object({
+  caseId: z.string(),
   testPlan: z.object({
     id: z.string(),
     caseId: z.string(),
@@ -50,6 +51,10 @@ export const testPlanRemoveTool: ToolDefinition<
   handler: async (input: TestPlanRemoveInput, context: ToolContext) => {
     context.logger?.info("Removing test plan", { caseId: input.caseId, testPlanId: input.testPlanId });
     const result = await removeTestPlan(input);
-    return result;
+    return {
+      caseId: input.caseId,
+      testPlan: result.testPlan,
+      case: result.case,
+    };
   },
 };

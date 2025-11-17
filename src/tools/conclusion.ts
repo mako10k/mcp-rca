@@ -22,7 +22,23 @@ const conclusionSchema = z.object({
 });
 
 const conclusionOutputSchema = z.object({
+  caseId: z.string(),
   conclusion: conclusionSchema,
+  case: z.object({
+    id: z.string(),
+    title: z.string(),
+    severity: z.string(),
+    tags: z.array(z.string()),
+    status: z.string(),
+    observations: z.array(z.any()),
+    impacts: z.array(z.any()),
+    hypotheses: z.array(z.any()),
+    tests: z.array(z.any()),
+    results: z.array(z.any()),
+    conclusion: z.any().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
 });
 
 export type ConclusionInput = z.infer<typeof conclusionInputSchema>;
@@ -60,7 +76,9 @@ export const conclusionTool: ToolDefinition<ConclusionInput, ConclusionOutput> =
     }
 
     return {
+      caseId: input.caseId,
       conclusion,
+      case: result.case,
     };
   },
 };

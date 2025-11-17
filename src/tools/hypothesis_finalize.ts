@@ -8,6 +8,7 @@ const hypothesisFinalizeInputSchema = z.object({
 });
 
 const hypothesisFinalizeOutputSchema = z.object({
+  caseId: z.string(),
   hypothesis: z.object({
     id: z.string(),
     caseId: z.string(),
@@ -48,6 +49,10 @@ export const hypothesisFinalizeTool: ToolDefinition<
   handler: async (input: HypothesisFinalizeInput, context: ToolContext) => {
     context.logger?.info("Finalizing hypothesis", { caseId: input.caseId, hypothesisId: input.hypothesisId });
     const result = await finalizeHypothesis(input);
-    return result;
+    return {
+      caseId: input.caseId,
+      hypothesis: result.hypothesis,
+      case: result.case,
+    };
   },
 };

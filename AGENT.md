@@ -176,10 +176,17 @@ See `docs/RESPONSE_STRUCTURE_STANDARDIZATION.md` for complete details.
 
 (Implementation notes) Persistence and case-management tools are implemented. Resource registration includes robust fallback paths to account for packaged installs.
 
+## Performance considerations
+- **Token optimization**: Many mutation tools (`observation_add`, `observation_update`, `hypothesis_update`, etc.) return the complete `case` object by default, which can consume thousands of tokens per operation.
+- **Recommended pattern**: Perform mutations in batches, then use `case_get` with selective `include` parameters to fetch only needed data.
+- **Example**: Instead of relying on the `case` field in every `observation_add` response, call `case_get({ caseId, include: ['observations'] })` after adding multiple observations.
+- See `docs/API_RESPONSE_OPTIMIZATION.md` for detailed optimization strategies.
+
 ## Future work
 - Case notes and related features
 - Deeper LLM client integrations for hypothesis generation
 - Evented updates via `resources/subscribe`
 - Additional conclusion metadata (confidence, signatures)
+- Optional `includeCase: boolean` parameter for mutation tools to control response verbosity
 
 Treat this document as the single source of truth for the current spec and keep it in sync with the implementation.

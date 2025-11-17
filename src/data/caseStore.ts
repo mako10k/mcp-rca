@@ -192,7 +192,26 @@ export async function addObservation(
     throw new Error(`Case ${input.caseId} not found`);
   }
 
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  // Ensure observation timestamps strictly increase so downstream pagination order is stable
+  let timestamp = nowDate.getTime();
+  const lastObservation = cases[index].observations.at(-1);
+  if (lastObservation) {
+    const lastCreated = new Date(lastObservation.createdAt).getTime();
+    if (!Number.isNaN(lastCreated) && timestamp <= lastCreated) {
+      timestamp = lastCreated + 1;
+    }
+  }
+
+  const previousUpdatedSource = cases[index].updatedAt ?? cases[index].createdAt;
+  if (previousUpdatedSource) {
+    const previousUpdated = new Date(previousUpdatedSource).getTime();
+    if (!Number.isNaN(previousUpdated) && timestamp <= previousUpdated) {
+      timestamp = previousUpdated + 1;
+    }
+  }
+
+  const now = new Date(timestamp).toISOString();
   const normalizedContext = input.context?.trim() ?? undefined;
 
   const observation: Observation = {

@@ -16,6 +16,7 @@ Root Cause Analysis MCP server that helps SRE teams structure observations, hypo
   - `guidance_prompt_scaffold` - Structured output formats for tasks
   - `guidance_followups` - Post-conclusion follow-up actions
   - `guidance_prompts_catalog` - Discover available prompts
+  - `guidance_tools_catalog` - Comprehensive tool catalog with workflow guidance
 - **Hypothesis generation** returns persisted objects with IDs
   - `hypothesis_propose` persists generated hypotheses and returns each item with `id`, `caseId`, `createdAt`, and `updatedAt`.
   - When the generator supplies a verification plan in its output, an initial `test_plan_create` is called automatically and minimal info is attached to the hypothesis (method/expected/metric?).

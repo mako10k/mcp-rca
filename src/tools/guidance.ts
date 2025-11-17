@@ -324,6 +324,339 @@ export const guidancePromptsCatalogTool: ToolDefinition<
   },
 };
 
+// guidance_tools_catalog (Tool discovery and workflow)
+const toolsCatalogInput = z.object({
+  includeWorkflow: z.boolean().optional(),
+  includeExamples: z.boolean().optional(),
+});
+
+const toolsCatalogOutput = z.object({
+  toolGroups: z.array(
+    z.object({
+      name: z.string(),
+      description: z.string(),
+      tools: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string(),
+          requiredInputs: z.array(z.string()),
+          optionalInputs: z.array(z.string()).optional(),
+          outputs: z.array(z.string()),
+        }),
+      ),
+    }),
+  ),
+  workflow: z
+    .array(
+      z.object({
+        phase: z.string(),
+        description: z.string(),
+        recommendedTools: z.array(z.string()),
+        optionalTools: z.array(z.string()).optional(),
+      }),
+    )
+    .optional(),
+  examples: z
+    .array(
+      z.object({
+        scenario: z.string(),
+        toolSequence: z.array(z.string()),
+      }),
+    )
+    .optional(),
+});
+
+export type GuidanceToolsCatalogInput = z.infer<typeof toolsCatalogInput>;
+export type GuidanceToolsCatalogOutput = z.infer<typeof toolsCatalogOutput>;
+
+export const guidanceToolsCatalogTool: ToolDefinition<
+  GuidanceToolsCatalogInput,
+  GuidanceToolsCatalogOutput
+> = {
+  name: "guidance_tools_catalog",
+  description:
+    "Return a comprehensive catalog of available tools organized by function, with workflow guidance and usage examples.",
+  inputSchema: toolsCatalogInput,
+  outputSchema: toolsCatalogOutput,
+  handler: async (input) => {
+    const toolGroups = [
+      {
+        name: "Case Management",
+        description: "Create, retrieve, update, and list RCA cases",
+        tools: [
+          {
+            name: "case_create",
+            description: "Create a new RCA case",
+            requiredInputs: ["title", "severity", "tags"],
+            optionalInputs: ["gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["caseId", "case"],
+          },
+          {
+            name: "case_get",
+            description: "Retrieve a case with optional resource filtering",
+            requiredInputs: ["caseId"],
+            optionalInputs: ["include", "observationCursor", "observationLimit"],
+            outputs: ["case", "cursors"],
+          },
+          {
+            name: "case_list",
+            description: "List and search cases with pagination",
+            requiredInputs: [],
+            optionalInputs: ["query", "tags", "severity", "includeArchived", "pageSize", "cursor"],
+            outputs: ["cases", "nextCursor", "total"],
+          },
+          {
+            name: "case_update",
+            description: "Update case metadata or archive status",
+            requiredInputs: ["caseId"],
+            optionalInputs: ["title", "severity", "tags", "status", "gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["case"],
+          },
+        ],
+      },
+      {
+        name: "Observation Management",
+        description: "Record and manage incident observations",
+        tools: [
+          {
+            name: "observation_add",
+            description: "Add a new observation to a case",
+            requiredInputs: ["caseId", "what"],
+            optionalInputs: ["context", "gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["caseId", "observation", "case"],
+          },
+          {
+            name: "observation_update",
+            description: "Update an existing observation",
+            requiredInputs: ["caseId", "observationId"],
+            optionalInputs: ["what", "context", "gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["caseId", "observation", "case"],
+          },
+          {
+            name: "observation_remove",
+            description: "Remove an observation from a case",
+            requiredInputs: ["caseId", "observationId"],
+            outputs: ["caseId", "observation", "case"],
+          },
+        ],
+      },
+      {
+        name: "Hypothesis Management",
+        description: "Generate, update, and finalize root cause hypotheses",
+        tools: [
+          {
+            name: "hypothesis_propose",
+            description: "Generate up to 3 testable hypotheses with optional test plans",
+            requiredInputs: ["caseId", "text"],
+            optionalInputs: ["rationale", "context", "logs"],
+            outputs: ["hypotheses"],
+          },
+          {
+            name: "hypothesis_update",
+            description: "Update hypothesis text, rationale, or confidence",
+            requiredInputs: ["caseId", "hypothesisId"],
+            optionalInputs: ["text", "rationale", "confidence"],
+            outputs: ["hypothesis", "case"],
+          },
+          {
+            name: "hypothesis_finalize",
+            description: "Mark a hypothesis as confirmed (confidence=1.0)",
+            requiredInputs: ["caseId", "hypothesisId"],
+            outputs: ["hypothesis", "case"],
+          },
+          {
+            name: "hypothesis_remove",
+            description: "Remove a hypothesis and its test plans",
+            requiredInputs: ["caseId", "hypothesisId"],
+            outputs: ["hypothesis", "case"],
+          },
+        ],
+      },
+      {
+        name: "Test Plan Management",
+        description: "Create and manage verification test plans",
+        tools: [
+          {
+            name: "test_plan_create",
+            description: "Create a verification plan for a hypothesis",
+            requiredInputs: ["caseId", "hypothesisId", "method", "expected"],
+            optionalInputs: ["metric", "gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["testPlanId", "status", "notes"],
+          },
+          {
+            name: "test_plan_update",
+            description: "Update an existing test plan",
+            requiredInputs: ["caseId", "testPlanId"],
+            optionalInputs: ["method", "expected", "metric", "priority", "gitBranch", "gitCommit", "deployEnv"],
+            outputs: ["testPlan", "case"],
+          },
+          {
+            name: "test_plan_remove",
+            description: "Remove a test plan",
+            requiredInputs: ["caseId", "testPlanId"],
+            outputs: ["testPlan", "case"],
+          },
+          {
+            name: "test_prioritize",
+            description: "Prioritize test plans using RICE or ICE scoring",
+            requiredInputs: ["strategy", "items"],
+            outputs: ["ranked"],
+          },
+        ],
+      },
+      {
+        name: "Conclusion & Cleanup",
+        description: "Finalize RCA and clean up provisional items",
+        tools: [
+          {
+            name: "conclusion_finalize",
+            description: "Document root causes, fixes, and follow-ups",
+            requiredInputs: ["caseId", "rootCauses", "fix"],
+            optionalInputs: ["followUps"],
+            outputs: ["conclusion", "case"],
+          },
+          {
+            name: "bulk_delete_provisional",
+            description: "Bulk delete low-confidence hypotheses and test plans",
+            requiredInputs: ["caseId"],
+            optionalInputs: ["confidenceThreshold", "priorityThreshold"],
+            outputs: ["deletedHypotheses", "deletedTestPlans", "case"],
+          },
+        ],
+      },
+      {
+        name: "Guidance & Best Practices",
+        description: "Access RCA methodology guidance and tool recommendations",
+        tools: [
+          {
+            name: "guidance_best_practices",
+            description: "RCA principles, heuristics, and anti-patterns",
+            requiredInputs: [],
+            optionalInputs: ["locale"],
+            outputs: ["systemPreamble", "heuristics", "antiPatterns", "citations"],
+          },
+          {
+            name: "guidance_phase",
+            description: "Phase-specific steps, checklists, and tool hints",
+            requiredInputs: ["phase"],
+            optionalInputs: ["level"],
+            outputs: ["steps", "checklists", "redFlags", "toolHints"],
+          },
+          {
+            name: "guidance_prompt_scaffold",
+            description: "Structured output format for specific tasks",
+            requiredInputs: ["task"],
+            optionalInputs: ["strictness"],
+            outputs: ["role", "format", "constraints"],
+          },
+          {
+            name: "guidance_followups",
+            description: "Post-conclusion follow-up action recommendations",
+            requiredInputs: [],
+            optionalInputs: ["domain"],
+            outputs: ["actions", "ownersHint"],
+          },
+          {
+            name: "guidance_prompts_catalog",
+            description: "Catalog of available prompts with usage guidance",
+            requiredInputs: [],
+            optionalInputs: ["locale"],
+            outputs: ["prompts"],
+          },
+          {
+            name: "guidance_tools_catalog",
+            description: "Comprehensive tool catalog with workflow and examples",
+            requiredInputs: [],
+            optionalInputs: ["includeWorkflow", "includeExamples"],
+            outputs: ["toolGroups", "workflow", "examples"],
+          },
+        ],
+      },
+    ];
+
+    const workflow = input.includeWorkflow
+      ? [
+          {
+            phase: "1. Case Creation",
+            description: "Initialize the RCA investigation",
+            recommendedTools: ["case_create"],
+            optionalTools: ["guidance_best_practices"],
+          },
+          {
+            phase: "2. Observation Collection",
+            description: "Gather facts, metrics, logs, and timeline",
+            recommendedTools: ["observation_add"],
+            optionalTools: ["observation_update", "observation_remove", "guidance_phase"],
+          },
+          {
+            phase: "3. Hypothesis Generation",
+            description: "Propose testable root cause hypotheses",
+            recommendedTools: ["hypothesis_propose"],
+            optionalTools: ["hypothesis_update", "guidance_phase"],
+          },
+          {
+            phase: "4. Test Planning",
+            description: "Create and prioritize verification plans",
+            recommendedTools: ["test_plan_create", "test_prioritize"],
+            optionalTools: ["test_plan_update", "guidance_phase"],
+          },
+          {
+            phase: "5. Hypothesis Refinement",
+            description: "Update confidence and finalize confirmed hypotheses",
+            recommendedTools: ["hypothesis_update", "hypothesis_finalize"],
+            optionalTools: ["bulk_delete_provisional"],
+          },
+          {
+            phase: "6. Conclusion",
+            description: "Document findings and follow-up actions",
+            recommendedTools: ["conclusion_finalize"],
+            optionalTools: ["guidance_followups", "case_update"],
+          },
+        ]
+      : undefined;
+
+    const examples = input.includeExamples
+      ? [
+          {
+            scenario: "Quick incident investigation",
+            toolSequence: [
+              "case_create",
+              "observation_add (multiple times)",
+              "hypothesis_propose",
+              "test_plan_create",
+              "hypothesis_finalize",
+              "conclusion_finalize",
+            ],
+          },
+          {
+            scenario: "Complex investigation with multiple hypotheses",
+            toolSequence: [
+              "case_create",
+              "observation_add (multiple times)",
+              "hypothesis_propose",
+              "test_plan_create (for each hypothesis)",
+              "test_prioritize",
+              "hypothesis_update (adjust confidence)",
+              "bulk_delete_provisional",
+              "hypothesis_finalize",
+              "conclusion_finalize",
+            ],
+          },
+          {
+            scenario: "Review existing case",
+            toolSequence: ["case_list", "case_get", "observation_add", "hypothesis_update"],
+          },
+        ]
+      : undefined;
+
+    return {
+      toolGroups,
+      workflow,
+      examples,
+    };
+  },
+};
+
 // Use a widened ToolDefinition type so heterogeneous input/output schemas can coexist in one array
 type AnyTool = ToolDefinition<any, any>;
 export const GUIDANCE_TOOLS: AnyTool[] = [
@@ -332,4 +665,5 @@ export const GUIDANCE_TOOLS: AnyTool[] = [
   guidancePromptScaffoldTool,
   guidanceFollowupsTool,
   guidancePromptsCatalogTool,
+  guidanceToolsCatalogTool,
 ];

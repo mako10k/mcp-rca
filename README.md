@@ -232,6 +232,8 @@ const caseData = await case_get({
 
 See [docs/API_RESPONSE_OPTIMIZATION.md](docs/API_RESPONSE_OPTIMIZATION.md) for detailed optimization strategies and token savings examples.
 
+For paging details (limits, cursors, and `include` semantics) see [docs/CASE_GET_PAGINATION.md](docs/CASE_GET_PAGINATION.md).
+
 ## License
 
 This project is released under the MIT License. See the `LICENSE` file for details.

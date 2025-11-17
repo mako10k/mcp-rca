@@ -16,6 +16,10 @@ const caseGetInputSchema = z.object({
 const cursorsSchema = z
   .object({
     nextObservationCursor: z.string().optional(),
+    observationLimit: z.number().int().min(1).optional(),
+    observationReturned: z.number().int().min(0).optional(),
+    observationTotal: z.number().int().min(0).optional(),
+    hasMoreObservations: z.boolean().optional(),
   })
   .optional();
 
@@ -83,22 +87,39 @@ export const caseGetTool: ToolDefinition<CaseGetInput, CaseGetOutput> = {
 
     // If include is not specified, return all data (backward compatibility)
     // If include is specified, only return the requested collections
-    const includeAll = !input.include || input.include.length === 0;
+    const includeAll = input.include === undefined;
     const includeObservations = includeAll || (input.include?.includes("observations") ?? false);
     const includeHypotheses = includeAll || (input.include?.includes("hypotheses") ?? false);
     const includeTests = includeAll || (input.include?.includes("tests") ?? false);
     const includeResults = includeAll || (input.include?.includes("results") ?? false);
     
+    const totalObservations = result.case.observations.length;
     const observationLimit = input.observationLimit ?? DEFAULT_OBSERVATION_LIMIT;
     const observationOffset = decodeObservationCursor(input.observationCursor);
 
     let nextObservationCursor: string | undefined;
     let observations = result.case.observations;
+    let pagination:
+      | {
+          nextObservationCursor?: string;
+          observationLimit: number;
+          observationReturned: number;
+          observationTotal: number;
+          hasMoreObservations: boolean;
+        }
+      | undefined;
 
     if (includeObservations) {
       const sliced = sliceObservations(observations, observationLimit, observationOffset);
       observations = sliced.slice;
       nextObservationCursor = sliced.nextCursor;
+      pagination = {
+        nextObservationCursor,
+        observationLimit,
+        observationReturned: observations.length,
+        observationTotal: totalObservations,
+        hasMoreObservations: Boolean(nextObservationCursor),
+      };
     } else {
       observations = [];
     }
@@ -117,11 +138,22 @@ export const caseGetTool: ToolDefinition<CaseGetInput, CaseGetOutput> = {
       includeHypotheses,
       includeTests,
       includeResults,
+      observationLimit,
+      observationReturned: pagination?.observationReturned ?? 0,
+      observationTotal: totalObservations,
     });
 
     return {
       case: responseCase,
-      cursors: nextObservationCursor ? { nextObservationCursor } : undefined,
+      cursors: includeObservations && pagination
+        ? {
+            nextObservationCursor: pagination.nextObservationCursor,
+            observationLimit: pagination.observationLimit,
+            observationReturned: pagination.observationReturned,
+            observationTotal: pagination.observationTotal,
+            hasMoreObservations: pagination.hasMoreObservations,
+          }
+        : undefined,
     };
   },
 };

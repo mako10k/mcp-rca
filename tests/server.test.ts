@@ -130,7 +130,12 @@ describe("mcp server", () => {
     expect(caseGetResponse.result.structuredContent.case.observations[0].context).toBe(
       "Updated context after SLO review",
     );
-    expect(caseGetResponse.result.structuredContent.cursors).toBeUndefined();
+    expect(caseGetResponse.result.structuredContent.cursors).toEqual({
+      observationLimit: 1,
+      observationReturned: 1,
+      observationTotal: 1,
+      hasMoreObservations: false,
+    });
 
     const observationRemoveResponse = await issueRequest(output, input, {
       id: 7,

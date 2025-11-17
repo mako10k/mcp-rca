@@ -190,6 +190,126 @@ describe("new features", () => {
     }
   });
 
+  it("case_get returns observation pagination metadata", async () => {
+    const oldPath = process.env.MCP_RCA_CASES_PATH;
+    const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-new-"));
+    const tempCasesPath = join(tempCasesDir, "cases.json");
+    process.env.MCP_RCA_CASES_PATH = tempCasesPath;
+
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const { server, transport } = await buildServer({ input, output });
+
+    try {
+  await mcpServerKit.connectToTransport(server, transport);
+  await connectAndInit(output, input);
+
+      const caseCreate = await issueRequest(output, input, {
+        id: 30,
+        method: "tools/call",
+        params: {
+          name: "case_create",
+          arguments: { title: "Observation paging", severity: "SEV2" },
+        },
+      });
+      const caseId = caseCreate.result.structuredContent.caseId as string;
+
+      for (let index = 0; index < 25; index += 1) {
+        await issueRequest(output, input, {
+          id: 31 + index,
+          method: "tools/call",
+          params: {
+            name: "observation_add",
+            arguments: { caseId, what: `Observation ${index + 1}` },
+          },
+        });
+      }
+
+      const firstPage = await issueRequest(output, input, {
+        id: 1000,
+        method: "tools/call",
+        params: {
+          name: "case_get",
+          arguments: { caseId, include: ["observations"], observationLimit: 10 },
+        },
+      });
+
+      const firstContent = firstPage.result.structuredContent as any;
+      expect(firstContent.case.observations.length).toBe(10);
+      expect(firstContent.cursors).toBeDefined();
+      expect(firstContent.cursors.observationLimit).toBe(10);
+      expect(firstContent.cursors.observationReturned).toBe(10);
+      expect(firstContent.cursors.observationTotal).toBe(25);
+      expect(firstContent.cursors.hasMoreObservations).toBe(true);
+      expect(typeof firstContent.cursors.nextObservationCursor).toBe("string");
+
+      const secondPage = await issueRequest(output, input, {
+        id: 1001,
+        method: "tools/call",
+        params: {
+          name: "case_get",
+          arguments: {
+            caseId,
+            include: ["observations"],
+            observationLimit: 10,
+            observationCursor: firstContent.cursors.nextObservationCursor,
+          },
+        },
+      });
+
+      const secondContent = secondPage.result.structuredContent as any;
+      expect(secondContent.case.observations.length).toBe(10);
+      expect(secondContent.cursors.observationReturned).toBe(10);
+      expect(secondContent.cursors.observationTotal).toBe(25);
+      expect(secondContent.cursors.hasMoreObservations).toBe(true);
+      expect(typeof secondContent.cursors.nextObservationCursor).toBe("string");
+
+      const thirdPage = await issueRequest(output, input, {
+        id: 1002,
+        method: "tools/call",
+        params: {
+          name: "case_get",
+          arguments: {
+            caseId,
+            include: ["observations"],
+            observationLimit: 10,
+            observationCursor: secondContent.cursors.nextObservationCursor,
+          },
+        },
+      });
+
+      const thirdContent = thirdPage.result.structuredContent as any;
+      expect(thirdContent.case.observations.length).toBe(5);
+      expect(thirdContent.cursors.observationReturned).toBe(5);
+      expect(thirdContent.cursors.observationTotal).toBe(25);
+      expect(thirdContent.cursors.hasMoreObservations).toBe(false);
+      expect(thirdContent.cursors.nextObservationCursor).toBeUndefined();
+
+      const summaryOnly = await issueRequest(output, input, {
+        id: 1003,
+        method: "tools/call",
+        params: {
+          name: "case_get",
+          arguments: {
+            caseId,
+            include: [],
+          },
+        },
+      });
+
+      const summaryContent = summaryOnly.result.structuredContent as any;
+      expect(summaryContent.case.observations.length).toBe(0);
+      expect(summaryContent.case.hypotheses.length).toBe(0);
+      expect(summaryContent.case.tests.length).toBe(0);
+      expect(summaryContent.case.results.length).toBe(0);
+      expect(summaryContent.cursors).toBeUndefined();
+    } finally {
+      await server.close();
+      await transport.close();
+      if (oldPath === undefined) delete process.env.MCP_RCA_CASES_PATH; else process.env.MCP_RCA_CASES_PATH = oldPath;
+    }
+  });
+
   it("conclusion_finalize updates case status to closed", async () => {
     const oldPath = process.env.MCP_RCA_CASES_PATH;
     const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-new-"));

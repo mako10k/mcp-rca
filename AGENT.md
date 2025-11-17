@@ -33,7 +33,7 @@ Last updated: 2025-10-21
 | Name | Role | Status | Key inputs | Metadata args (optional) | Key outputs |
 |------|------|--------|------------|--------------------------|-------------|
 | `case_create` | Create a new RCA case | ✅ | `title`, `severity`, `tags?` | `gitBranch`, `gitCommit`, `deployEnv` | `caseId`, `case` |
-| `case_get` | Fetch a single case (optional paging for related objects) | ✅ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | — | `case`, `cursors?` |
+| `case_get` | Fetch a single case (optional paging for related objects) | ✅ | `caseId`, `include?`, `observationCursor?`, `observationLimit?` | — | `case`, `cursors?` (observation paging metadata) |
 | `case_list` | List/search cases (with paging) | ✅ | `query?`, `tags?`, `severity?`, `includeArchived?`, `pageSize?`, `cursor?` | — | `cases[]`, `nextCursor?`, `total?` |
 | `case_update` | Update case metadata / archive management | ✅ | `caseId`, `title?`, `severity?`, `tags?`, `status?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `caseId`, `case` |
 | `observation_add` | Add an observation to a case | ✅ | `caseId`, `what`, `context?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `caseId`, `observation`, `case` |
@@ -125,7 +125,7 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 
 ### Case-management design notes
 - Minimize tool surface: case CRUD is consolidated into `case_create`, `case_get`, `case_list`, `case_update`. Deletion is soft via `case_update` with `status: "archived"`.
-- `case_get`: requires `caseId`. If `include` contains `observations`, observations are returned with paging using `observationCursor` / `observationLimit` (default 20, max 100). A `cursors.nextObservationCursor?` is included when applicable.
+- `case_get`: requires `caseId`. `include` defaults to all collections when omitted, and accepts `[]` to return metadata without collections. If `include` contains `observations`, data is paged using `observationCursor` / `observationLimit` (default 20, max 100). The response’s `cursors` object reports `observationLimit`, `observationReturned`, `observationTotal`, `hasMoreObservations`, and `nextObservationCursor?` to drive client pagination loops.
 - `case_list`: filtering via `query` (prefix match on title/tags), `tags` (AND), `severity`, `includeArchived`; paging with `pageSize` (default 20, max 50). Cursors are `base64(JSON.stringify({ offset, signature }))`; responses include `nextCursor` and `total` (capped at 1000).
 - `case_update`: only provided fields are updated. Archived cases are hidden by default in `case_list` unless `includeArchived` is set.
 - Observations: `observation_add` provides the create path; listing relies on `case_get` paging. Individual update/remove tools are implemented.

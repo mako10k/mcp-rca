@@ -18,7 +18,7 @@ Root Cause Analysis MCP server that helps SRE teams structure observations, hypo
   - `guidance_prompts_catalog` - Discover available prompts
 - **Hypothesis generation** returns persisted objects with IDs
   - `hypothesis_propose` persists generated hypotheses and returns each item with `id`, `caseId`, `createdAt`, and `updatedAt`.
-  - When the generator supplies a verification plan in its output, an initial `test_plan` is created automatically and minimal info is attached to the hypothesis (method/expected/metric?).
+  - When the generator supplies a verification plan in its output, an initial `test_plan_create` is called automatically and minimal info is attached to the hypothesis (method/expected/metric?).
 - **Git/deploy metadata** on Case / Observation / TestPlan
   - Optional fields: `gitBranch`, `gitCommit`, `deployEnv`.
   - Set on create and update tools; passing `null` on update clears the field.
@@ -98,7 +98,7 @@ Use prompt: rca_hypothesis_propose with caseId
 ```
 Use prompt: rca_verification_planning with caseId, hypothesisId, hypothesisText
 → Provides test plan templates and prioritization guidance
-→ Then call tool: test_plan to create verification plans
+→ Then call tool: test_plan_create to create verification plans
 ```
 
 ### 5. Document Conclusion
@@ -167,7 +167,7 @@ The following tools accept optional metadata fields; on update, `null` clears th
   - `observation_add`: `gitBranch?`, `gitCommit?`, `deployEnv?`
   - `observation_update`: `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears)
 - Test Plan
-  - `test_plan`: `gitBranch?`, `gitCommit?`, `deployEnv?`
+  - `test_plan_create`: `gitBranch?`, `gitCommit?`, `deployEnv?`
   - `test_plan_update`: `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears)
 
 Example update payload that clears `gitCommit` on an observation:

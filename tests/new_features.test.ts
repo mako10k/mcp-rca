@@ -153,7 +153,7 @@ describe("new features", () => {
         id: 14,
         method: "tools/call",
         params: {
-          name: "test_plan",
+          name: "test_plan_create",
           arguments: { caseId, hypothesisId: hypId, method: "Run fio", expected: "High iops", gitBranch: "feat/x", gitCommit: "abc123", deployEnv: "staging" },
         },
       });

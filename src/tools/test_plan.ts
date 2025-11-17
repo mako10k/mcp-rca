@@ -23,7 +23,7 @@ export type TestPlanInput = z.infer<typeof testPlanInputSchema>;
 export type TestPlanOutput = z.infer<typeof testPlanOutputSchema>;
 
 export const testPlanTool: ToolDefinition<TestPlanInput, TestPlanOutput> = {
-  name: "test_plan",
+  name: "test_plan_create",
   description:
     "Create a verification plan for a hypothesis, including the method, metrics, and expected signals.",
   inputSchema: testPlanInputSchema,

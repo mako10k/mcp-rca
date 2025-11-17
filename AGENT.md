@@ -43,7 +43,7 @@ Last updated: 2025-10-21
 | `hypothesis_update` | Update a hypothesis | ✅ | `caseId`, `hypothesisId`, `text?`, `rationale?`, `confidence?` | — | `hypothesis`, `case` |
 | `hypothesis_remove` | Remove a hypothesis (and related test plans) | ✅ | `caseId`, `hypothesisId` | — | `hypothesis`, `case` |
 | `hypothesis_finalize` | Finalize a hypothesis (sets `confidence` to 1.0) | ✅ | `caseId`, `hypothesisId` | — | `hypothesis`, `case` |
-| `test_plan` | Create a verification plan | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `testPlanId`, `status`, `notes` |
+| `test_plan_create` | Create a verification plan | ✅ | `caseId`, `hypothesisId`, `method`, `expected`, `metric?` | `gitBranch?`, `gitCommit?`, `deployEnv?` | `testPlanId`, `status`, `notes` |
 | `test_plan_update` | Update a test plan | ✅ | `caseId`, `testPlanId`, `method?`, `expected?`, `metric?`, `priority?` | `gitBranch?`, `gitCommit?`, `deployEnv?` (nullable clears) | `testPlan`, `case` |
 | `test_plan_remove` | Remove a test plan | ✅ | `caseId`, `testPlanId` | — | `testPlan`, `case` |
 | `test_prioritize` | Prioritize test plans (RICE/ICE) | ✅ | `strategy`, `items[]` | — | `ranked[]` |
@@ -107,7 +107,7 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 - Where to set/update (nullable clears the field):
   - `case_create` / `case_update` — on the Case
   - `observation_add` / `observation_update` — on the Observation
-  - `test_plan` / `test_plan_update` — on the TestPlan
+  - `test_plan_create` / `test_plan_update` — on the TestPlan
 - Persisted values are included in responses like `case_get` (omitted when unset).
 
 ### Typical workflow
@@ -116,7 +116,7 @@ The server logs the resolved cases path at startup (visible in stderr) to help d
 3. **Create case and observations**: Call `case_create` and `observation_add` to record incident facts.
 4. **Get next steps**: Use `prompts/get` with `rca_next_step` (passing `caseId`) to analyze current state and get recommendations.
 5. **Generate hypotheses**: Use `prompts/get` with `rca_hypothesis_propose` for hypothesis guidance, then call `hypothesis_propose` to generate and persist hypotheses with LLM assistance.
-6. **Plan verification**: Create test plans with `test_plan`, prioritize using `test_prioritize`, and execute verification steps.
+6. **Plan verification**: Create test plans with `test_plan_create`, prioritize using `test_prioritize`, and execute verification steps.
 7. **Update and refine**: Use `hypothesis_update`, `hypothesis_finalize`, `test_plan_update` as investigation progresses.
 8. **Clean up**: Prune low-confidence items with `bulk_delete_provisional`.
 9. **Conclude**: Call `conclusion_finalize` to record root causes, fixes, and follow-up actions.

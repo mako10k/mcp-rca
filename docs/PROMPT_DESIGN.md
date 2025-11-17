@@ -139,7 +139,9 @@ Goal: Standardize the flow where the LLM understands available user prompts, nud
         "whenToUse": ["Right after incident", "No case yet"],
         "arguments": [
           {"name": "incidentSummary", "required": false, "hint": "1-2 lines"}
-        ]
+        ],
+        "template": "You are a Root Cause Analysis (RCA) expert...",
+        "templateFormat": "mustache"
       },
       {
         "name": "rca_next_step",
@@ -149,7 +151,9 @@ Goal: Standardize the flow where the LLM understands available user prompts, nud
         "arguments": [
           {"name": "caseId", "required": true},
           {"name": "currentPhase", "required": false}
-        ]
+        ],
+        "template": "## Case Progress Analysis...",
+        "templateFormat": "mustache"
       }
     ]
   }

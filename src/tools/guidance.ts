@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { START_INVESTIGATION_TEMPLATE } from "../prompts/rca-start-investigation.js";
+import { NEXT_STEP_TEMPLATE } from "../prompts/rca-next-step.js";
+import { HYPOTHESIS_GUIDE_TEMPLATE } from "../prompts/rca-hypothesis-guide.js";
+import { VERIFICATION_PLANNING_TEMPLATE } from "../prompts/rca-verification-planning.js";
+import { CONCLUSION_GUIDE_TEMPLATE } from "../prompts/rca-conclusion-guide.js";
 import type { ToolDefinition } from "./types.js";
 
 // Common enums
@@ -274,6 +279,8 @@ const catalogOutput = z.object({
           z.object({ name: z.string(), required: z.boolean().optional(), hint: z.string().optional() }),
         )
         .optional(),
+      template: z.string(),
+      templateFormat: z.enum(["mustache"]).optional(),
     }),
   ),
 });
@@ -298,6 +305,8 @@ export const guidancePromptsCatalogTool: ToolDefinition<
           description: "Guide to create a new case and capture initial observations.",
           whenToUse: ["Right after incident", "No case yet"],
           arguments: [{ name: "incidentSummary", required: false, hint: "1-2 lines" }],
+          template: START_INVESTIGATION_TEMPLATE,
+          templateFormat: "mustache",
         },
         {
           name: "rca_next_step",
@@ -308,6 +317,8 @@ export const guidancePromptsCatalogTool: ToolDefinition<
             { name: "caseId", required: true },
             { name: "currentPhase", required: false },
           ],
+          template: NEXT_STEP_TEMPLATE,
+          templateFormat: "mustache",
         },
         {
           name: "rca_hypothesis_propose",
@@ -318,6 +329,30 @@ export const guidancePromptsCatalogTool: ToolDefinition<
             { name: "caseId", required: true },
             { name: "observationSummary", required: false },
           ],
+          template: HYPOTHESIS_GUIDE_TEMPLATE,
+          templateFormat: "mustache",
+        },
+        {
+          name: "rca_verification_planning",
+          title: "Verification planning",
+          description: "Guide to create verification test plans for hypotheses.",
+          whenToUse: ["Need to verify hypotheses"],
+          arguments: [
+            { name: "caseId", required: true },
+            { name: "hypothesisId", required: true },
+            { name: "hypothesisText", required: true },
+          ],
+          template: VERIFICATION_PLANNING_TEMPLATE,
+          templateFormat: "mustache",
+        },
+        {
+          name: "rca_conclusion_guide",
+          title: "Conclusion guide",
+          description: "Document conclusions with root causes, fixes, and follow-ups.",
+          whenToUse: ["Investigation complete", "Preparing postmortem"],
+          arguments: [{ name: "caseId", required: true }],
+          template: CONCLUSION_GUIDE_TEMPLATE,
+          templateFormat: "mustache",
         },
       ],
     };

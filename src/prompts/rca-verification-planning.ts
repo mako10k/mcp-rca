@@ -2,7 +2,7 @@ import type { McpServer } from "../framework/mcpServerKit.js";
 import { z } from "zod";
 import { render } from "../prompt-helpers/template-renderer.js";
 
-const VERIFICATION_PLANNING_TEMPLATE = `## Test Plan Creation
+export const VERIFICATION_PLANNING_TEMPLATE = `## Test Plan Creation
 
 ### Target Hypothesis
 {{hypothesisText}}

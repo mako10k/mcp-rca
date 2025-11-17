@@ -2,7 +2,7 @@ import type { McpServer } from "../framework/mcpServerKit.js";
 import { z } from "zod";
 import { render } from "../prompt-helpers/template-renderer.js";
 
-const HYPOTHESIS_GUIDE_TEMPLATE = `## Hypothesis Generation Guide
+export const HYPOTHESIS_GUIDE_TEMPLATE = `## Hypothesis Generation Guide
 
 ### Good Hypothesis Criteria
 

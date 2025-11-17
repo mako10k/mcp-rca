@@ -123,7 +123,16 @@ describe("guidance tools", () => {
     expect(promptNames).toEqual(expect.arrayContaining([
       "rca_next_step",
       "rca_hypothesis_propose",
+      "rca_verification_planning",
+      "rca_conclusion_guide",
     ]));
+
+    const startPrompt = catalogResponse.result.structuredContent.prompts.find((p: any) => p.name === "rca_start_investigation");
+    expect(startPrompt?.template).toContain("Root Cause Analysis (RCA) expert");
+    expect(startPrompt?.templateFormat).toBe("mustache");
+
+    const nextStepPrompt = catalogResponse.result.structuredContent.prompts.find((p: any) => p.name === "rca_next_step");
+    expect(nextStepPrompt?.template).toContain("## Case Progress Analysis");
 
     await server.close();
     await transport.close();

@@ -57,7 +57,7 @@ Last updated: 2025-10-21
 | `guidance_phase` | Phase-specific steps/checklists/pitfalls | ✅ | `phase` (`observation`/`hypothesis`/`testing`/`conclusion`), `level?` | — | `steps[]`, `checklists[]`, `redFlags[]`, `toolHints[]` |
 | `guidance_prompt_scaffold` | Role/format/constraints scaffolding for tasks | ✅ | `task` (`hypothesis`/`verification_plan`/`next_step`/`conclusion`), `strictness?` | — | `role`, `format`, `constraints[]`, `examples?[]` |
 | `guidance_followups` | Post-conclusion follow-up suggestions | ✅ | `domain?[]` | — | `actions[]`, `ownersHint?` |
-| `guidance_prompts_catalog` | Catalog of user-facing prompts for discovery | ✅ | `locale?` | — | `prompts[]` (each: `name`, `title`, `description`, `whenToUse?[]`, `arguments?[]`) |
+| `guidance_prompts_catalog` | Catalog of user-facing prompts for discovery | ✅ | `locale?` | — | `prompts[]` (each: `name`, `title`, `description`, `whenToUse?[]`, `arguments?[]`, `template`, `templateFormat?`) |
 | `guidance_tools_catalog` | Comprehensive tool catalog with workflow guidance | ✅ | `includeWorkflow?`, `includeExamples?` | — | `toolGroups[]`, `workflow?[]`, `examples?[]` |
 
 ### Resources

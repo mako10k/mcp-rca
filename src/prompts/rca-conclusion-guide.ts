@@ -2,7 +2,7 @@ import type { McpServer } from "../framework/mcpServerKit.js";
 import { z } from "zod";
 import { render } from "../prompt-helpers/template-renderer.js";
 
-const CONCLUSION_GUIDE_TEMPLATE = `## RCA Conclusion Summary
+export const CONCLUSION_GUIDE_TEMPLATE = `## RCA Conclusion Summary
 
 ### Elements to Include in Conclusion
 

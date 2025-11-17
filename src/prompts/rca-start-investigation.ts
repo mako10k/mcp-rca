@@ -2,7 +2,7 @@ import type { McpServer } from "../framework/mcpServerKit.js";
 import { z } from "zod";
 import { render } from "../prompt-helpers/template-renderer.js";
 
-const START_INVESTIGATION_TEMPLATE = `You are a Root Cause Analysis (RCA) expert. Let's start investigating this incident systematically.
+export const START_INVESTIGATION_TEMPLATE = `You are a Root Cause Analysis (RCA) expert. Let's start investigating this incident systematically.
 
 {{#if incidentSummary}}
 ## Current Situation

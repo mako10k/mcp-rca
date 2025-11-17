@@ -49,7 +49,7 @@ Used by:
 #### Pattern D: Guidance Tools (Various)
 - `guidance_best_practices`: `{ principles, antiPatterns, citations? }`
 - `guidance_phase`: `{ phase, checklist, steps, redFlags, toolSuggestions }`
-- `guidance_prompts_catalog`: `{ prompts }`
+- `guidance_prompts_catalog`: `{ prompts }` (each prompt now includes `template` and `templateFormat?`)
 - `guidance_followups`: `{ followUps }`
 - `guidance_prompt_scaffold`: `{ scaffold }`
 - `guidance_tools_catalog`: `{ toolGroups, workflow?, examples? }`

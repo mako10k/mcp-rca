@@ -4,7 +4,7 @@ import { z } from "zod";
 /**
  * Template for rca_next_step prompt
  */
-const NEXT_STEP_TEMPLATE = `## Case Progress Analysis
+export const NEXT_STEP_TEMPLATE = `## Case Progress Analysis
 
 **Case ID**: {{caseId}}
 **Current Phase**: {{currentPhase}}

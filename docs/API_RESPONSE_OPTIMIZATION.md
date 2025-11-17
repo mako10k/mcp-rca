@@ -24,10 +24,10 @@ const result2 = await observation_add({ caseId, what: "..." });
 await observation_add({ caseId, what: "..." });
 await observation_add({ caseId, what: "..." });
 
-// Only fetch case when you actually need it
-const case = await case_get({ 
+// Only fetch case data when you actually need it
+const caseData = await case_get({
   caseId,
-  include: ['observations']  // Only observations, not hypotheses/tests/results
+  include: ['observations'],  // Only observations, not hypotheses/tests/results
 });
 ```
 
@@ -41,23 +41,23 @@ await observation_add({ caseId, what: "Observation 2" });
 await observation_add({ caseId, what: "Observation 3" });
 
 // Fetch once at the end
-const case = await case_get({ caseId });
+const caseData = await case_get({ caseId });
 ```
 
 #### 2. Selective Include
 ```javascript
 // Only fetch what you need
-const case = await case_get({ 
+const caseData = await case_get({
   caseId,
-  include: ['observations', 'hypotheses']  // Exclude tests and results
+  include: ['observations', 'hypotheses'],  // Exclude tests and results
 });
 ```
 
 #### 3. Summary-only Queries
 ```javascript
 // For just checking counts
-const summary = await case_get({ caseId, include: [] });
-// Returns case metadata without collections
+const result = await case_get({ caseId, include: [] });
+// Returns case metadata without collections via result.case
 ```
 
 ### Token Savings Examples

@@ -173,6 +173,16 @@ The following tools accept optional metadata fields; on update, `null` clears th
 
 Example update payload that clears `gitCommit` on an observation:
 
+```json
+{
+  "caseId": "case_...",
+  "observationId": "obs_...",
+  "gitCommit": null
+}
+```
+
+Responses include the persisted metadata when set; fields are omitted when unset.
+
 ## Performance & Best Practices
 
 ### Token Optimization
@@ -186,9 +196,9 @@ await observation_add({ caseId, what: "..." });
 await observation_add({ caseId, what: "..." });
 
 // Fetch case data selectively when needed
-const case = await case_get({ 
+const caseData = await case_get({
   caseId,
-  include: ['observations']  // Only fetch what you need
+  include: ['observations'],  // Only fetch what you need
 });
 ```
 
@@ -197,16 +207,6 @@ See [docs/API_RESPONSE_OPTIMIZATION.md](docs/API_RESPONSE_OPTIMIZATION.md) for d
 ## License
 
 This project is released under the MIT License. See the `LICENSE` file for details.
-
-```json
-{
-  "caseId": "case_...",
-  "observationId": "obs_...",
-  "gitCommit": null
-}
-```
-
-Responses include the persisted metadata when set; fields are omitted when unset.
 
 ## Publishing
 

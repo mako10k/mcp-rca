@@ -58,6 +58,7 @@ const caseData = await case_get({
 // For just checking counts
 const result = await case_get({ caseId, include: [] });
 // Returns case metadata without collections via result.case
+// result.cursors is undefined because no collections were requested
 ```
 
 ### Token Savings Examples
@@ -109,6 +110,7 @@ The following tools return a complete `case` object in their responses:
 3. **Batch operations** before fetching the updated case
 4. **Cache case data** on the client side when appropriate
 5. **Use pagination** for large observation/test collections
+6. **Inspect `result.cursors`** to drive observation pagination (limit, total, hasMore)
 
 ## Future Enhancements
 

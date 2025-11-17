@@ -173,6 +173,27 @@ The following tools accept optional metadata fields; on update, `null` clears th
 
 Example update payload that clears `gitCommit` on an observation:
 
+## Performance & Best Practices
+
+### Token Optimization
+
+Many mutation tools (e.g., `observation_add`, `hypothesis_update`) return the complete `case` object in their responses, which can consume thousands of tokens per operation.
+
+**Recommended pattern:**
+```javascript
+// Perform mutations without relying on the case field
+await observation_add({ caseId, what: "..." });
+await observation_add({ caseId, what: "..." });
+
+// Fetch case data selectively when needed
+const case = await case_get({ 
+  caseId,
+  include: ['observations']  // Only fetch what you need
+});
+```
+
+See [docs/API_RESPONSE_OPTIMIZATION.md](docs/API_RESPONSE_OPTIMIZATION.md) for detailed optimization strategies and token savings examples.
+
 ## License
 
 This project is released under the MIT License. See the `LICENSE` file for details.

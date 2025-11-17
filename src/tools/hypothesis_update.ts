@@ -11,6 +11,7 @@ const hypothesisUpdateInputSchema = z.object({
 });
 
 const hypothesisUpdateOutputSchema = z.object({
+  caseId: z.string(),
   hypothesis: z.object({
     id: z.string(),
     caseId: z.string(),
@@ -51,6 +52,10 @@ export const hypothesisUpdateTool: ToolDefinition<
   handler: async (input: HypothesisUpdateInput, context: ToolContext) => {
     context.logger?.info("Updating hypothesis", { caseId: input.caseId, hypothesisId: input.hypothesisId });
     const result = await updateHypothesis(input);
-    return result;
+    return {
+      caseId: input.caseId,
+      hypothesis: result.hypothesis,
+      case: result.case,
+    };
   },
 };

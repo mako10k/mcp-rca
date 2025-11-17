@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { generateHypotheses } from "../llm/generator.js";
-import { addHypothesis } from "../data/caseStore.js";
+import { addHypothesis, addTestPlan } from "../data/caseStore.js";
 import type { Hypothesis } from "../schema/hypothesis.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
 
@@ -50,7 +50,23 @@ const hypothesisProposeInputSchema = z.object({
 });
 
 const hypothesisProposeOutputSchema = z.object({
+  caseId: z.string(),
   hypotheses: z.array(hypothesisSchema),
+  case: z.object({
+    id: z.string(),
+    title: z.string(),
+    severity: z.string(),
+    tags: z.array(z.string()),
+    status: z.string(),
+    observations: z.array(z.any()),
+    impacts: z.array(z.any()),
+    hypotheses: z.array(z.any()),
+    tests: z.array(z.any()),
+    results: z.array(z.any()),
+    conclusion: z.any().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }),
 });
 
 export type HypothesisProposeInput = z.infer<typeof hypothesisProposeInputSchema>;
@@ -68,21 +84,20 @@ export const hypothesisProposeTool: ToolDefinition<
   handler: async (input: HypothesisProposeInput, context: ToolContext) => {
     context.logger?.info("Generating hypotheses", { caseId: input.caseId });
     const generated = await generateHypotheses(input);
-
     // Persist each hypothesis sequentially to avoid race conditions with file I/O
+    context.logger?.info("Hypotheses generated", { count: generated.length });
     const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
-    
+
     for (const hyp of generated) {
       const { hypothesis } = await addHypothesis({
         caseId: input.caseId,
         text: hyp.text,
         rationale: hyp.rationale,
       });
-      
+
       let plan: MinimalTestPlan | undefined;
       if (hyp.testPlan?.method && hyp.testPlan?.expected) {
-        // lazily import to avoid cycle
-        const { addTestPlan } = await import("../data/caseStore.js");
+        context.logger?.info("Creating initial test plan from generator output", { method: hyp.testPlan.method });
         const result = await addTestPlan({
           caseId: input.caseId,
           hypothesisId: hypothesis.id,
@@ -98,10 +113,22 @@ export const hypothesisProposeTool: ToolDefinition<
           metric: result.testPlan.metric,
         };
       }
-      
+
       persisted.push({ ...hypothesis, testPlan: plan });
     }
 
-    return { hypotheses: persisted };
+    // Fetch final case state after all mutations
+    const { getCase } = await import("../data/caseStore.js");
+    const finalCase = await getCase(input.caseId);
+    if (!finalCase) {
+      throw new Error(`Case ${input.caseId} not found after hypothesis creation`);
+    }
+
+    context.logger?.info("Generated and persisted hypotheses", { count: persisted.length });
+    return {
+      caseId: input.caseId,
+      hypotheses: persisted,
+      case: finalCase.case,
+    };
   },
 };

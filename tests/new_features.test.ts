@@ -157,7 +157,7 @@ describe("new features", () => {
           arguments: { caseId, hypothesisId: hypId, method: "Run fio", expected: "High iops", gitBranch: "feat/x", gitCommit: "abc123", deployEnv: "staging" },
         },
       });
-      const testPlanId = testPlanCreate.result.structuredContent.testPlanId as string;
+      const testPlanId = testPlanCreate.result.structuredContent.testPlan.id as string;
       expect(testPlanId).toMatch(/^tp_/);
 
       // Update test plan: change deployEnv and clear gitBranch

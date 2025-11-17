@@ -183,6 +183,34 @@ Example update payload that clears `gitCommit` on an observation:
 
 Responses include the persisted metadata when set; fields are omitted when unset.
 
+## API Response Structure
+
+All mutation tools follow a consistent response structure for predictability and ease of use:
+
+### Standard Mutation Response
+
+```typescript
+{
+  caseId: string;           // Always at top level
+  [resourceName]: Resource; // The created/updated/removed resource
+  case: Case;               // Full case object after the mutation
+}
+```
+
+**Benefits:**
+- ✅ **Consistent**: Same pattern across all mutation tools
+- ✅ **Context Access**: `caseId` always at top level
+- ✅ **Immediate State**: Full `case` object available without additional queries
+- ✅ **Token Optimization**: Combine with `case_get`'s `include` parameter for efficient workflows
+
+**Examples:**
+- `observation_add` → `{ caseId, observation, case }`
+- `hypothesis_propose` → `{ caseId, hypotheses, case }`
+- `test_plan_create` → `{ caseId, testPlan, case }`
+- `conclusion_finalize` → `{ caseId, conclusion, case }`
+
+See [`docs/RESPONSE_STRUCTURE_STANDARDIZATION.md`](docs/RESPONSE_STRUCTURE_STANDARDIZATION.md) for complete details.
+
 ## Performance & Best Practices
 
 ### Token Optimization

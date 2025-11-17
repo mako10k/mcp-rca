@@ -19,8 +19,8 @@ describe("new features", () => {
     const { server, transport } = await buildServer({ input, output });
 
     try {
-  await mcpServerKit.connectToTransport(server, transport);
-  await connectAndInit(output, input);
+      await mcpServerKit.connectToTransport(server, transport);
+      await connectAndInit(output, input);
 
       // Create a case
       const caseCreate = await issueRequest(output, input, {
@@ -303,6 +303,158 @@ describe("new features", () => {
       expect(summaryContent.case.tests.length).toBe(0);
       expect(summaryContent.case.results.length).toBe(0);
       expect(summaryContent.cursors).toBeUndefined();
+    } finally {
+      await server.close();
+      await transport.close();
+      if (oldPath === undefined) delete process.env.MCP_RCA_CASES_PATH; else process.env.MCP_RCA_CASES_PATH = oldPath;
+    }
+  });
+
+  it("observations_list supports search, filtering, sorting, and pagination", async () => {
+    const oldPath = process.env.MCP_RCA_CASES_PATH;
+    const tempCasesDir = mkdtempSync(join(tmpdir(), "mcp-rca-new-"));
+    const tempCasesPath = join(tempCasesDir, "cases.json");
+    process.env.MCP_RCA_CASES_PATH = tempCasesPath;
+
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const { server, transport } = await buildServer({ input, output });
+
+    try {
+  await mcpServerKit.connectToTransport(server, transport);
+  await connectAndInit(output, input);
+
+      const caseCreate = await issueRequest(output, input, {
+        id: 2000,
+        method: "tools/call",
+        params: {
+          name: "case_create",
+          arguments: { title: "Observation filters", severity: "SEV2" },
+        },
+      });
+      const caseId = caseCreate.result.structuredContent.caseId as string;
+
+      const obs1 = await issueRequest(output, input, {
+        id: 2001,
+        method: "tools/call",
+        params: {
+          name: "observation_add",
+          arguments: {
+            caseId,
+            what: "DriveNotFoundException triggered during backup",
+            context: "Detected on branch main",
+            gitBranch: "main",
+          },
+        },
+      });
+
+      await issueRequest(output, input, {
+        id: 2002,
+        method: "tools/call",
+        params: {
+          name: "observation_add",
+          arguments: {
+            caseId,
+            what: "Slow response recorded",
+            context: "Follow-up analysis pending",
+          },
+        },
+      });
+
+      const obs3 = await issueRequest(output, input, {
+        id: 2003,
+        method: "tools/call",
+        params: {
+          name: "observation_add",
+          arguments: {
+            caseId,
+            what: "Drive error resolved",
+            context: "DriveNotFoundException cleared after redeploy",
+            gitBranch: "release",
+          },
+        },
+      });
+
+      const obs1Created = (obs1.result.structuredContent.observation as any).createdAt as string;
+      const obs3Created = (obs3.result.structuredContent.observation as any).createdAt as string;
+      const obs3Id = (obs3.result.structuredContent.observation as any).id as string;
+
+      const searchResponse = await issueRequest(output, input, {
+        id: 2004,
+        method: "tools/call",
+        params: {
+          name: "observations_list",
+          arguments: {
+            caseId,
+            query: "DriveNotFoundException",
+            pageSize: 1,
+          },
+        },
+      });
+
+      const searchContent = searchResponse.result.structuredContent as any;
+      expect(searchContent.observations).toHaveLength(1);
+      expect(searchContent.hasMore).toBe(true);
+      expect(searchContent.total).toBeGreaterThanOrEqual(2);
+      expect(typeof searchContent.nextCursor).toBe("string");
+
+      const secondPage = await issueRequest(output, input, {
+        id: 2005,
+        method: "tools/call",
+        params: {
+          name: "observations_list",
+          arguments: {
+            caseId,
+            query: "DriveNotFoundException",
+            pageSize: 1,
+            cursor: searchContent.nextCursor,
+          },
+        },
+      });
+
+      const secondContent = secondPage.result.structuredContent as any;
+      expect(secondContent.observations).toHaveLength(1);
+      expect(secondContent.pageSize).toBe(1);
+      expect(secondContent.hasMore).toBe(false);
+
+      const branchFiltered = await issueRequest(output, input, {
+        id: 2006,
+        method: "tools/call",
+        params: {
+          name: "observations_list",
+          arguments: {
+            caseId,
+            gitBranch: "release",
+          },
+        },
+      });
+
+      const branchContent = branchFiltered.result.structuredContent as any;
+      expect(branchContent.observations).toHaveLength(1);
+      expect(branchContent.observations[0].gitBranch).toBe("release");
+
+      const dateFiltered = await issueRequest(output, input, {
+        id: 2007,
+        method: "tools/call",
+        params: {
+          name: "observations_list",
+          arguments: {
+            caseId,
+            createdAfter: obs1Created,
+            createdBefore: obs3Created,
+            order: "desc",
+          },
+        },
+      });
+
+      const dateContent = dateFiltered.result.structuredContent as any;
+      expect(dateContent.observations.length).toBeGreaterThan(0);
+      expect(dateContent.observations[0].id).toBe(obs3Id);
+      if (dateContent.observations.length >= 2) {
+        const firstCreated = new Date(dateContent.observations[0].createdAt).getTime();
+        const secondCreated = new Date(dateContent.observations[1].createdAt).getTime();
+        expect(firstCreated).toBeGreaterThanOrEqual(secondCreated);
+      }
     } finally {
       await server.close();
       await transport.close();

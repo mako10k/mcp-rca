@@ -183,6 +183,23 @@ Example update payload that clears `gitCommit` on an observation:
 
 Responses include the persisted metadata when set; fields are omitted when unset.
 
+### Observation search & pagination
+
+Use `observations_list` to query observations without pulling the full case payload:
+
+```json
+{
+  "caseId": "case_...",
+  "query": "DriveNotFoundException",
+  "fields": ["what", "context"],
+  "pageSize": 10,
+  "gitBranch": "release",
+  "order": "desc"
+}
+```
+
+The response returns `observations`, `nextCursor`, `total`, `pageSize`, and `hasMore`. Pass `cursor` with the next call to page through the set. Combine with the `case_get` summary mode (`include: []`) to minimize token usage. See [docs/CASE_GET_PAGINATION.md](docs/CASE_GET_PAGINATION.md) for cursor details.
+
 ## API Response Structure
 
 All mutation tools follow a consistent response structure for predictability and ease of use:

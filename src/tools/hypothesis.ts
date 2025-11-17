@@ -84,16 +84,13 @@ export const hypothesisProposeTool: ToolDefinition<
   handler: async (input: HypothesisProposeInput, context: ToolContext) => {
     context.logger?.info("Generating hypotheses", { caseId: input.caseId });
     const generated = await generateHypotheses(input);
-
     // Persist each hypothesis sequentially to avoid race conditions with file I/O
     const persisted: Array<Hypothesis & { testPlan?: MinimalTestPlan }> = [];
-    let updatedCase;
+      const { hypothesis } = await addHypothesis({
     
     for (const hyp of generated) {
       const { hypothesis, case: caseAfterHypothesis } = await addHypothesis({
         caseId: input.caseId,
-        text: hyp.text,
-        rationale: hyp.rationale,
       });
       
       updatedCase = caseAfterHypothesis;
@@ -106,7 +103,6 @@ export const hypothesisProposeTool: ToolDefinition<
           caseId: input.caseId,
           hypothesisId: hypothesis.id,
           method: hyp.testPlan.method,
-          expected: hyp.testPlan.expected,
           metric: hyp.testPlan.metric,
         });
         updatedCase = result.case;

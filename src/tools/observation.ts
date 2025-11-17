@@ -4,7 +4,7 @@ import type { Observation } from "../schema/case.js";
 import { caseSchema } from "./case.js";
 import type { ToolDefinition, ToolContext } from "./types.js";
 
-const observationSchema: z.ZodType<Observation> = z.object({
+export const observationSchema: z.ZodType<Observation> = z.object({
   id: z.string(),
   caseId: z.string(),
   what: z.string(),

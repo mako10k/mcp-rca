@@ -436,6 +436,7 @@ export interface ListCasesResult {
 }
 
 const MAX_LIST_TOTAL = 1000;
+const MAX_OBSERVATION_LIST_TOTAL = 1000;
 
 interface CursorPayload {
   offset: number;
@@ -534,6 +535,177 @@ export async function listCases(options: ListCasesOptions = {}): Promise<ListCas
     cases: summaries,
     nextCursor,
     total,
+  };
+}
+
+export type ObservationSearchField = "what" | "context";
+export type ObservationSortBy = "createdAt";
+export type SortOrder = "asc" | "desc";
+
+export interface ListObservationsOptions {
+  caseId: string;
+  query?: string;
+  fields?: ObservationSearchField[];
+  createdAfter?: Date;
+  createdBefore?: Date;
+  gitBranch?: string;
+  gitCommit?: string;
+  deployEnv?: string;
+  sortBy?: ObservationSortBy;
+  order?: SortOrder;
+  pageSize?: number;
+  cursor?: string;
+}
+
+export interface ListObservationsResult {
+  observations: Observation[];
+  nextCursor?: string;
+  total: number;
+  pageSize: number;
+}
+
+interface ObservationCursorPayload {
+  offset: number;
+  signature: string;
+}
+
+function encodeObservationCursor(payload: ObservationCursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function decodeObservationCursor(cursor: string | undefined): ObservationCursorPayload | null {
+  if (!cursor) {
+    return null;
+  }
+
+  try {
+    const json = Buffer.from(cursor, "base64url").toString("utf8");
+    const parsed = JSON.parse(json) as ObservationCursorPayload;
+    if (typeof parsed?.offset === "number" && typeof parsed?.signature === "string") {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function createObservationSignature(options: ListObservationsOptions): string {
+  const normalizedFields = options.fields ? [...options.fields].sort() : undefined;
+
+  return JSON.stringify({
+    caseId: options.caseId,
+    query: options.query ?? null,
+    fields: normalizedFields ?? null,
+    createdAfter: options.createdAfter ? options.createdAfter.toISOString() : null,
+    createdBefore: options.createdBefore ? options.createdBefore.toISOString() : null,
+    gitBranch: options.gitBranch ?? null,
+    gitCommit: options.gitCommit ?? null,
+    deployEnv: options.deployEnv ?? null,
+    sortBy: options.sortBy ?? "createdAt",
+    order: options.order ?? "asc",
+  });
+}
+
+function normalizeObservationFields(fields: ObservationSearchField[] | undefined): ObservationSearchField[] {
+  if (!fields || fields.length === 0) {
+    return ["what", "context"];
+  }
+
+  const unique = Array.from(new Set(fields));
+  unique.sort();
+  return unique;
+}
+
+export async function listObservations(options: ListObservationsOptions): Promise<ListObservationsResult> {
+  const cases = await loadCases();
+  const found = cases.find((item) => item.id === options.caseId);
+
+  if (!found) {
+    throw new Error(`Case ${options.caseId} not found`);
+  }
+
+  const normalizedQuery = options.query?.trim().toLowerCase() || undefined;
+  const fields = normalizeObservationFields(options.fields);
+  const pageSize = Math.min(Math.max(options.pageSize ?? 20, 1), 100);
+  const sortBy = options.sortBy ?? "createdAt";
+  const order = options.order ?? "asc";
+  const signature = createObservationSignature({ ...options, sortBy, order });
+
+  let offset = 0;
+  const decodedCursor = decodeObservationCursor(options.cursor);
+  if (decodedCursor && decodedCursor.signature === signature) {
+    offset = Math.max(decodedCursor.offset, 0);
+  }
+
+  const filtered = found.observations.filter((observation) => {
+    if (normalizedQuery) {
+      const matches = fields.some((field) => {
+        if (field === "what") {
+          return observation.what.toLowerCase().includes(normalizedQuery);
+        }
+        if (field === "context") {
+          return observation.context?.toLowerCase().includes(normalizedQuery) ?? false;
+        }
+        return false;
+      });
+
+      if (!matches) {
+        return false;
+      }
+    }
+
+    if (options.gitBranch && observation.gitBranch !== options.gitBranch) {
+      return false;
+    }
+
+    if (options.gitCommit && observation.gitCommit !== options.gitCommit) {
+      return false;
+    }
+
+    if (options.deployEnv && observation.deployEnv !== options.deployEnv) {
+      return false;
+    }
+
+    if (options.createdAfter) {
+      const createdAt = new Date(observation.createdAt);
+      if (Number.isNaN(createdAt.getTime()) || createdAt < options.createdAfter) {
+        return false;
+      }
+    }
+
+    if (options.createdBefore) {
+      const createdAt = new Date(observation.createdAt);
+      if (Number.isNaN(createdAt.getTime()) || createdAt > options.createdBefore) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "createdAt") {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      const diff = aTime - bTime;
+      return order === "asc" ? diff : -diff;
+    }
+
+    return 0;
+  });
+
+  const slice = sorted.slice(offset, offset + pageSize);
+  const nextOffset = offset + pageSize;
+  const nextCursor = nextOffset < sorted.length ? encodeObservationCursor({ offset: nextOffset, signature }) : undefined;
+  const total = sorted.length > MAX_OBSERVATION_LIST_TOTAL ? MAX_OBSERVATION_LIST_TOTAL : sorted.length;
+
+  return {
+    observations: slice,
+    nextCursor,
+    total,
+    pageSize,
   };
 }
 
